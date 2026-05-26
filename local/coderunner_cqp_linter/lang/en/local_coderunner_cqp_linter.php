@@ -23,7 +23,15 @@
  */
 
 $string['pluginname'] = 'CodeRunner CQP Linter';
-$string['privacy:metadata'] = 'The CodeRunner CQP Linter plugin does not store any personal data. Lint results are cached temporarily using code hashes.';
+$string['privacy:metadata'] = 'The CodeRunner CQP Linter plugin stores a record each time a student clicks the "Check Code Quality" button, for research purposes.';
+$string['privacy:metadata:event'] = 'Records of student CQP lint button interactions.';
+$string['privacy:metadata:event:userid'] = 'The ID of the student who clicked the button.';
+$string['privacy:metadata:event:questionid'] = 'The question the student was answering.';
+$string['privacy:metadata:event:attemptid'] = 'The quiz attempt during which the button was clicked (0 for previews).';
+$string['privacy:metadata:event:slot'] = 'The slot number of the question in the quiz.';
+$string['privacy:metadata:event:issuecount'] = 'The total number of code quality issues found.';
+$string['privacy:metadata:event:resultsjson'] = 'Which Code Quality Principles were violated and how many times.';
+$string['privacy:metadata:event:timecreated'] = 'When the button was clicked.';
 
 // Admin settings.
 $string['settings_heading'] = 'CodeRunner CQP Linter Settings';
@@ -94,6 +102,19 @@ $string['coderunner_cqp_linter:manageglobalsettings'] = 'Manage global lint sett
 
 // Cache.
 $string['cachedef_lint_results'] = 'Cached lint analysis results';
+
+// Research data export report.
+$string['report_title'] = 'CQP Linter — Export research data';
+$string['report_rowcount'] = '{$a} interaction event(s) recorded.';
+$string['report_download_csv'] = 'Download as CSV';
+$string['report_nodata'] = 'No events have been recorded yet. Data appears here once students start clicking the "Check Code Quality" button.';
+$string['report_truncated'] = 'Showing 200 of {$a} rows. Download the CSV for the full dataset.';
+$string['report_col_user'] = 'Student';
+$string['report_col_question'] = 'Question';
+$string['report_col_attempt'] = 'Attempt ID';
+$string['report_col_issues'] = 'Issues found';
+$string['report_col_principles'] = 'Principles violated';
+$string['report_col_time'] = 'Time';
 
 // Per-question management form.
 $string['manage_title'] = 'Configure linting';

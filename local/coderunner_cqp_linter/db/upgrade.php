@@ -34,7 +34,25 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
     global $DB;
     $dbman = $DB->get_manager();
 
-    // Future upgrade steps go here.
+    if ($oldversion < 2026050301) {
+        $table = new xmldb_table('local_crcqp_lint_event');
+        if (!$dbman->table_exists($table)) {
+            $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE, null);
+            $table->add_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('questionid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, null);
+            $table->add_field('attemptid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('slot', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('issuecount', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_field('resultsjson', XMLDB_TYPE_TEXT, null, null, null, null, null);
+            $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+            $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+            $table->add_index('userid', XMLDB_INDEX_NOTUNIQUE, ['userid']);
+            $table->add_index('questionid', XMLDB_INDEX_NOTUNIQUE, ['questionid']);
+            $table->add_index('attemptid', XMLDB_INDEX_NOTUNIQUE, ['attemptid']);
+            $dbman->create_table($table);
+        }
+        upgrade_plugin_savepoint(true, 2026050301, 'local', 'coderunner_cqp_linter');
+    }
 
     return true;
 }

@@ -95,4 +95,12 @@ if ($hassiteconfig) {
 
 
     $ADMIN->add('localplugins', $settings);
+
+    // Research data export page — separate external page so it gets its own nav link.
+    $ADMIN->add('localplugins', new admin_externalpage(
+        'local_coderunner_cqp_linter_report',
+        get_string('report_title', 'local_coderunner_cqp_linter'),
+        new moodle_url('/local/coderunner_cqp_linter/report.php'),
+        'local/coderunner_cqp_linter:manageglobalsettings'
+    ));
 }

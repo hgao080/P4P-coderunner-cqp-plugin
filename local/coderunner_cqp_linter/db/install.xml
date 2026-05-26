@@ -21,5 +21,25 @@
         <INDEX NAME="questionid_uq" UNIQUE="true" FIELDS="questionid"/>
       </INDEXES>
     </TABLE>
+    <TABLE NAME="local_crcqp_lint_event" COMMENT="Student CQP lint interaction events for research">
+      <FIELDS>
+        <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+        <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Foreign key to user.id"/>
+        <FIELD NAME="questionid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Foreign key to question.id"/>
+        <FIELD NAME="attemptid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Quiz attempt id; 0 for previews"/>
+        <FIELD NAME="slot" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Question slot number in the quiz"/>
+        <FIELD NAME="issuecount" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Total CQP issues found by client-side analyser"/>
+        <FIELD NAME="resultsjson" TYPE="text" NOTNULL="false" COMMENT="JSON: which CQP principles were violated and how many times"/>
+        <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
+      </FIELDS>
+      <KEYS>
+        <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+      </KEYS>
+      <INDEXES>
+        <INDEX NAME="userid" UNIQUE="false" FIELDS="userid"/>
+        <INDEX NAME="questionid" UNIQUE="false" FIELDS="questionid"/>
+        <INDEX NAME="attemptid" UNIQUE="false" FIELDS="attemptid"/>
+      </INDEXES>
+    </TABLE>
   </TABLES>
 </XMLDB>

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other metadata.
+ * External functions and web services for local_coderunner_cqp_linter.
  *
  * @package    local_coderunner_cqp_linter
  * @copyright  2026 Your Name
@@ -24,11 +24,13 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version   = 2026050301;        // YYYYMMDDXX.
-$plugin->requires  = 2022112800;        // Moodle 4.1+.
-$plugin->component = 'local_coderunner_cqp_linter';
-$plugin->maturity  = MATURITY_ALPHA;
-$plugin->release   = '0.5.0';
-$plugin->dependencies = [
-    'qtype_coderunner' => ANY_VERSION,
+$functions = [
+    'local_coderunner_cqp_linter_record_lint_event' => [
+        'classname'     => 'local_coderunner_cqp_linter\external\record_lint_event',
+        'methodname'    => 'execute',
+        'description'   => 'Record a student CQP lint button interaction for research.',
+        'type'          => 'write',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ],
 ];
