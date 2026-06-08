@@ -24,7 +24,7 @@ require_once($CFG->libdir . '/externallib.php');
  * External function to run CQP lint analysis on student code via Jobe.
  *
  * Called from cqp_linter.js when a student clicks "Check Code Quality".
- * Submits code to Jobe with cqp_checker.py support files, applies per-question
+ * Submits code to Jobe with cqp_principles.py as a support file, applies per-question
  * config, and returns I.json-shaped payload for client-side rendering.
  *
  * @package    local_coderunner_cqp_linter

@@ -93,7 +93,14 @@ class runner {
         }
 
         $disable = $options['disable'] ?? $this->disablechecks;
-        $runnerscript = $this->build_runner_script($disable);
+
+        $filecontents = $this->read_support_files();
+        if ($filecontents === null) {
+            return new result([], 0.0, -1, microtime(true) - $starttime,
+                'CQP support files missing from plugin python/ directory.');
+        }
+
+        $runnerscript = $this->build_runner_script($disable, $filecontents['cqp_principles.py']);
 
         $joberesult = $this->submit_to_jobe($runnerscript, $code);
         $executiontime = microtime(true) - $starttime;
@@ -113,8 +120,7 @@ class runner {
     /**
      * Run CQP-mapped pylint + pycodestyle + custom checks via Jobe.
      *
-     * Sends cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py as
-     * Jobe file_list support files alongside the runner script. Returns the
+     * Sends cqp_principles.py as a Jobe file_list support file alongside the runner script. Returns the
      * decoded JSON array matching I.json shape, or an error array on failure.
      *
      * @param string $code    Student Python source code.
@@ -154,35 +160,28 @@ class runner {
     /**
      * Build the Python runner script for the "Check Code Quality" button.
      *
-     * Embeds cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py as
-     * base64 strings and writes them to the Jobe working directory before
-     * importing. This avoids Jobe's file_list pre-upload requirement.
+     * Embeds cqp_principles.py as base64 and uses pylint's Python API
+     * (not subprocess) to run checks. Using the API avoids the subprocess
+     * PATH issue on Jobe where `pylint` may not be in the shell PATH even
+     * though the library is importable.
      *
      * @param string $disable      Comma-separated codes/names to suppress.
-     * @param array  $filecontents ['filename' => base64string] for the 3 support files.
+     * @param array  $filecontents ['filename' => base64string] for support files.
      * @return string Python source.
      */
     private function build_button_runner_script(string $disable, array $filecontents): string {
         $safedisable = addslashes($disable);
-
-        // Build Python dict literal — base64 chars are safe in single-quoted strings.
-        $filesdict = '';
-        foreach ($filecontents as $name => $b64) {
-            $filesdict .= "    '" . $name . "': '" . $b64 . "',\n";
-        }
+        $principlesb64 = $filecontents['cqp_principles.py'] ?? '';
 
         return <<<PYTHON
-import base64, json, os, sys
+import base64, io, json, os, sys, tempfile
 
-_SUPPORT_FILES = {
-$filesdict}
-for _name, _b64 in _SUPPORT_FILES.items():
-    with open(_name, 'wb') as _f:
-        _f.write(base64.b64decode(_b64))
+with open('cqp_principles.py', 'wb') as _f:
+    _f.write(base64.b64decode('$principlesb64'))
+
+from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
 
 DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
-
-
 
 PRINCIPLE_KEYS = [
     'clear_presentation', 'explanatory_language', 'consistent_code',
@@ -204,56 +203,93 @@ def code_to_type(code):
     return TYPE_MAP.get(code[0] if code else 'C', 'convention')
 
 try:
-    from cqp_checker import check_principles
-    from cqp_principles import PRINCIPLES
+    # Build flat code -> {sym, expl, key} map from all active principles.
+    code_map = {}
+    for key in PRINCIPLE_KEYS:
+        if key not in PRINCIPLES:
+            continue
+        for code, (sym, expl) in PRINCIPLES[key]['codes'].items():
+            if code not in DISABLED and sym not in DISABLED:
+                code_map[code] = {'sym': sym, 'expl': expl, 'key': key}
+
+    pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
 
     student_code = sys.stdin.read()
-    results = check_principles(student_code, PRINCIPLE_KEYS)
-
     all_messages = []
-    principles_out = []
 
-    for result in results:
-        key = next((k for k, v in PRINCIPLES.items() if v['name'] == result['name']), None)
-        if key is None:
-            continue
-        num = PRINCIPLE_NUMBERS.get(key, 0)
-        pdata = PRINCIPLES[key]
-
-        msgs = []
-        for v in result['violations']:
-            if v['code'] in DISABLED or v.get('symbolic_name') in DISABLED:
-                continue
-            msg = {
-                'line':         int(v['line_no']),
-                'type':         code_to_type(v['code']),
-                'symbol':       v['symbolic_name'],
-                'message':      v['explanation'],
-                'cqp_number':   num,
-                'cqp_name':     result['name'],
-                'cqp_guideline': pdata['rationale'],
-            }
-            msgs.append(msg)
-            all_messages.append(msg)
-
-        if msgs:
-            principles_out.append({
-                'number':   num,
-                'name':     result['name'],
-                'short':    pdata['principle'],
-                'guideline': pdata['rationale'],
-                'count':    len(msgs),
-                'messages': msgs,
-            })
+    if pylint_codes:
+        with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as f:
+            f.write(student_code)
+            tmppath = f.name
+        try:
+            from pylint.lint import Run
+            # Capture sys.stdout so pylint's JSON output doesn't reach Jobe's
+            # captured stdout before we wrap it. pylint writes directly to
+            # sys.stdout when --output-format=json2 is used, ignoring any
+            # custom reporter buffer.
+            _real_stdout = sys.stdout
+            _captured = io.StringIO()
+            sys.stdout = _captured
+            try:
+                Run([
+                    '--disable=all',
+                    '--enable=' + ','.join(pylint_codes),
+                    '--output-format=json2',
+                    '--score=n',
+                    tmppath,
+                ], exit=False)
+            finally:
+                sys.stdout = _real_stdout
+            result = json.loads(_captured.getvalue() or '{}')
+            for msg in result.get('messages', []):
+                code = msg.get('messageId') or msg.get('message-id', '')
+                if code in code_map:
+                    info = code_map[code]
+                    num = PRINCIPLE_NUMBERS.get(info['key'], 0)
+                    pdata = PRINCIPLES[info['key']]
+                    all_messages.append({
+                        'line':          int(msg.get('line', 0)),
+                        'type':          code_to_type(code),
+                        'symbol':        info['sym'],
+                        'message':       info['expl'],
+                        'cqp_number':    num,
+                        'cqp_name':      pdata['name'],
+                        'cqp_guideline': pdata['rationale'],
+                    })
+        finally:
+            try:
+                os.unlink(tmppath)
+            except OSError:
+                pass
 
     all_messages.sort(key=lambda m: m['line'])
-    output = {
+
+    by_key = {}
+    for m in all_messages:
+        by_key.setdefault(m['cqp_number'], []).append(m)
+
+    principles_out = []
+    for key in PRINCIPLE_KEYS:
+        num = PRINCIPLE_NUMBERS.get(key, 0)
+        if num not in by_key:
+            continue
+        pdata = PRINCIPLES[key]
+        msgs = by_key[num]
+        principles_out.append({
+            'number':    num,
+            'name':      pdata['name'],
+            'short':     pdata['principle'],
+            'guideline': pdata['rationale'],
+            'count':     len(msgs),
+            'messages':  msgs,
+        })
+
+    print(json.dumps({
         'success':      True,
         'total_issues': len(all_messages),
         'messages':     all_messages,
-        'principles':   sorted(principles_out, key=lambda p: p['number']),
-    }
-    print(json.dumps(output))
+        'principles':   principles_out,
+    }))
 
 except Exception as exc:
     print(json.dumps({
@@ -264,60 +300,79 @@ PYTHON;
     }
 
     /**
-     * Read the three CQP support files from the plugin's python/ directory.
+     * Read cqp_principles.py from the plugin's python/ directory.
      *
-     * @return array|null ['filename' => base64string] for each file, or null if any missing.
+     * Only cqp_principles.py is needed — the button runner uses the pylint
+     * Python API directly rather than cqp_checker.py's subprocess approach.
+     *
+     * @return array|null ['cqp_principles.py' => base64string], or null if missing.
      */
     private function read_support_files(): ?array {
-        $pythondir = dirname(__DIR__, 3) . '/python/';
-        $files = ['cqp_checker.py', 'cqp_principles.py', 'cqp_custom_checkers.py'];
-        $contents = [];
-
-        foreach ($files as $filename) {
-            $path = $pythondir . $filename;
-            if (!file_exists($path)) {
-                return null;
-            }
-            $contents[$filename] = base64_encode(file_get_contents($path));
+        $path = dirname(__DIR__, 3) . '/python/cqp_principles.py';
+        if (!file_exists($path)) {
+            return null;
         }
-
-        return $contents;
+        return ['cqp_principles.py' => base64_encode(file_get_contents($path))];
     }
 
     /**
      * Build the Python runner script that Jobe will execute (review-page pylint path).
      *
-     * Reads student code from stdin, writes it to a temp file, runs pylint
-     * via the pylint Python API, and prints JSON output to stdout.
+     * Restricts pylint to only the codes defined in cqp_principles.py so the
+     * review panel shows the same violations as the "Check Code Quality" button.
+     * Outputs raw pylint JSON2 format for parser.php to consume.
      *
-     * @param string $disable Comma-separated pylint checks to disable.
+     * @param string $disable       Comma-separated pylint checks to suppress.
+     * @param string $principlesb64 Base64-encoded cqp_principles.py content.
      * @return string Python source code for the runner script.
      */
-    private function build_runner_script(string $disable): string {
-        // Only pylint check names go here — safe to embed directly.
+    private function build_runner_script(string $disable, string $principlesb64): string {
         $safedisable = addslashes($disable);
 
         return <<<PYTHON
-import sys, os, io, tempfile
+import base64, io, os, sys, tempfile
 
-DISABLE = '$safedisable'
+with open('cqp_principles.py', 'wb') as _f:
+    _f.write(base64.b64decode('$principlesb64'))
 
-code = sys.stdin.read()
-with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False) as f:
-    f.write(code)
+from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
+
+DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
+
+PRINCIPLE_KEYS = [
+    'clear_presentation', 'explanatory_language', 'consistent_code',
+    'used_content', 'simple_constructs', 'minimal_duplication',
+    'modular_structure', 'problem_alignment',
+]
+
+code_map = {}
+for key in PRINCIPLE_KEYS:
+    if key not in PRINCIPLES:
+        continue
+    for code, (sym, expl) in PRINCIPLES[key]['codes'].items():
+        if code not in DISABLED and sym not in DISABLED:
+            code_map[code] = sym
+
+pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
+
+student_code = sys.stdin.read()
+with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as f:
+    f.write(student_code)
     path = f.name
 
 try:
     from pylint.lint import Run
-    from pylint.reporters.json_reporter import JSON2Reporter
-    buf = io.StringIO()
-    reporter = JSON2Reporter(buf)
-    args = ['--output-format=json2', '--load-plugins=']
-    if DISABLE:
-        args.append('--disable=' + DISABLE)
-    args.append(path)
-    Run(args, reporter=reporter, exit=False)
-    print(buf.getvalue())
+    _real_stdout = sys.stdout
+    _captured = io.StringIO()
+    sys.stdout = _captured
+    try:
+        args = ['--output-format=json2', '--score=n']
+        if pylint_codes:
+            args.extend(['--disable=all', '--enable=' + ','.join(pylint_codes)])
+        Run(args + [path], exit=False)
+    finally:
+        sys.stdout = _real_stdout
+    print(_captured.getvalue())
 except Exception as e:
     print(str(e), file=sys.stderr)
     sys.exit(1)

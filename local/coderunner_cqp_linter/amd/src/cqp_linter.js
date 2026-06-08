@@ -406,6 +406,8 @@ define(['core/ajax'], function(Ajax) {
                     resultsDiv.innerHTML = '<div class="alert alert-warning" style="margin-top:0.5rem;">' +
                         escapeHtml(errMsg) + '</div>';
                     resultsDiv.style.display = '';
+                    btn.disabled = false;
+                    btn.textContent = 'Check Code Quality';
                     return;
                 }
 
@@ -418,12 +420,13 @@ define(['core/ajax'], function(Ajax) {
 
                 recordLintEvent(slotInfo, data.total_issues, data.principles);
 
+                btn.disabled = false;
+                btn.textContent = 'Check Code Quality';
+
             }).catch(function() {
                 resultsDiv.innerHTML = '<div class="alert alert-warning" style="margin-top:0.5rem;">' +
                     'Could not reach the lint service. Please try again.</div>';
                 resultsDiv.style.display = '';
-
-            }).finally(function() {
                 btn.disabled = false;
                 btn.textContent = 'Check Code Quality';
             });

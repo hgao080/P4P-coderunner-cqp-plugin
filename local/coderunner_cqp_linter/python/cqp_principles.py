@@ -109,37 +109,48 @@ CLEAR_PRESENTATION = {
     ),
     'E201': (
         'whitespace-after-bracket',
-        "There is a space immediately after an opening bracket. "
-        "Remove it — brackets should sit flush against their contents, "
-        "for example: my_list[0] not my_list[ 0 ]."
+        "There is a space immediately after an opening bracket. Extra "
+        "whitespace inside brackets creates visual noise that draws the eye "
+        "without adding information — it makes it harder to see where the "
+        "bracket's content begins. Brackets should sit flush against their "
+        "contents, for example: my_list[0] not my_list[ 0 ]."
     ),
     'E202': (
         'whitespace-before-bracket',
-        "There is a space immediately before a closing bracket. "
-        "Remove it — brackets should sit flush against their contents, "
-        "for example: my_list[0] not my_list[ 0 ]."
+        "There is a space immediately before a closing bracket. Extra "
+        "whitespace inside brackets creates visual noise and makes it harder "
+        "to see where the bracket's content ends. Brackets should sit flush "
+        "against their contents, for example: my_list[0] not my_list[ 0 ]."
     ),
     'E203': (
         'whitespace-before-punctuation',
-        "There is a space before a comma, semicolon, or colon. "
-        "These punctuation marks should follow immediately after the preceding "
-        "token with no space, for example: (a, b) not (a , b)."
+        "There is a space before a comma, semicolon, or colon. Punctuation "
+        "attaches to what comes before it, so a space in front makes the "
+        "preceding token look detached from the punctuation that belongs to "
+        "it. Write (a, b) not (a , b)."
     ),
     'E211': (
         'whitespace-before-bracket',
-        "There is a space before a bracket in a function call or index "
-        "operation. There should be no space between the name and the opening "
-        "bracket, for example: my_func() not my_func ()."
+        "There is a space between this name and the opening bracket. Without "
+        "the space, the bracket signals to the reader that the name is being "
+        "called or indexed. Adding a space breaks that visual connection and "
+        "makes the call or index look like a separate element. Write "
+        "my_func() not my_func ()."
     ),
     'E221': (
         'multiple-spaces-before-operator',
-        "There are multiple spaces before an operator. Use a single space on "
-        "each side of an operator to keep alignment clear and consistent."
+        "There are multiple spaces before this operator. Multiple spaces "
+        "suggest intentional column alignment, implying a deliberate pattern "
+        "— but when only this operator is padded, the reader will look for "
+        "a pattern that is not there. Use a single space on each side of "
+        "all operators."
     ),
     'E222': (
         'multiple-spaces-after-operator',
-        "There are multiple spaces after an operator. Use a single space on "
-        "each side of an operator to keep the code visually consistent."
+        "There are multiple spaces after this operator. Extra whitespace "
+        "after an operator creates uneven visual rhythm that slows reading "
+        "and looks unintentional. Use a single space on each side of an "
+        "operator."
     ),
     'E225': (
         'missing-whitespace-around-operator',
@@ -155,20 +166,27 @@ CLEAR_PRESENTATION = {
     ),
     'E241': (
         'multiple-spaces-after-separator',
-        "There are multiple spaces after this separator. Use a single space "
-        "after commas, colons, and semicolons to keep the code consistent."
+        "There are multiple spaces after this separator. A single space after "
+        "a separator is the expected visual pattern — multiple spaces suggest "
+        "intentional column alignment, but when that alignment does not "
+        "continue consistently, it just looks like a typo. Use a single "
+        "space after commas, colons, and semicolons."
     ),
     'E251': (
         'unexpected-spaces-around-keyword-equals',
         "There are spaces around the '=' in a keyword argument or default "
-        "value. PEP 8 requires no spaces here: def f(x=1) not def f(x = 1), "
-        "and f(x=1) not f(x = 1)."
+        "value. In a regular assignment, spaces around '=' are expected — so "
+        "adding them here makes keyword arguments look like assignment "
+        "statements, blurring the distinction between the two. Write "
+        "def f(x=1) and f(x=1), not def f(x = 1) and f(x = 1)."
     ),
     'E252': (
         'missing-whitespace-around-parameter-default',
         "There is no space around the '=' for an annotated parameter default. "
-        "When a parameter has a type annotation, PEP 8 requires spaces around "
-        "the default value: def f(x: int = 1) not def f(x: int=1)."
+        "When a type annotation is present, the '=' sits between the "
+        "annotation and the default value — without spaces, the three elements "
+        "run together and become harder to distinguish from one another. "
+        "Write def f(x: int = 1) not def f(x: int=1)."
     ),
     'E261': (
         'at-least-two-spaces-before-inline-comment',
@@ -232,14 +250,20 @@ CLEAR_PRESENTATION = {
     'E123': (
         'closing-bracket-does-not-match-indentation',
         "The closing bracket does not match the indentation of the opening "
-        "line. It should line up under the first non-whitespace character of "
-        "the last item, or under the start of the line that begins the "
-        "multiline construct."
+        "line. Consistent bracket placement makes it easy to find the end of "
+        "a multiline construct at a glance — without it, the reader must "
+        "scan the content rather than the structure to know where the "
+        "expression ends. It should line up under the first non-whitespace "
+        "character of the last item, or under the start of the line that "
+        "begins the multiline construct."
     ),
     'E124': (
         'closing-bracket-does-not-match-visual-indentation',
         "The closing bracket does not match the visual indentation of the "
-        "opening delimiter. Align the closing bracket with the opener."
+        "opening delimiter. A misaligned closing bracket makes it harder to "
+        "find where the multiline expression ends — the reader cannot scan "
+        "the left edge to find the matching bracket. Align the closing "
+        "bracket with the opener."
     ),
     'E125': (
         'continuation-line-with-same-indent-as-next-logical-line',
@@ -250,17 +274,24 @@ CLEAR_PRESENTATION = {
     'E126': (
         'continuation-line-over-indented-for-hanging-indent',
         "This continuation line is over-indented for a hanging indent. "
-        "Reduce the indentation to align with the expected level."
+        "Over-indentation pushes the line deeper than expected, making it "
+        "look like the start of a new nested block rather than a continuation "
+        "of the expression above. Reduce the indentation to align with the "
+        "expected level."
     ),
     'E127': (
         'continuation-line-over-indented-for-visual-indent',
-        "This continuation line is over-indented. Align it with the opening "
-        "delimiter."
+        "This continuation line is over-indented. Extra indentation makes "
+        "the continuation look like it belongs to a deeper block, misleading "
+        "the reader about where the current expression ends. Align it with "
+        "the opening delimiter."
     ),
     'E128': (
         'continuation-line-under-indented-for-visual-indent',
-        "This continuation line is under-indented. Align it with the opening "
-        "delimiter."
+        "This continuation line is under-indented. Without enough indentation, "
+        "the continuation looks like a new statement rather than part of the "
+        "expression above, misleading the reader about where the expression "
+        "ends. Align it with the opening delimiter."
     ),
     'E129': (
         'visually-indented-line-with-same-indent-as-next-logical-line',
@@ -274,9 +305,12 @@ CLEAR_PRESENTATION = {
     'W9001': (
         'docstring-closing-quote-placement',
         "The closing '\"\"\"' of this docstring is in the wrong position. "
-        "For a one-line docstring everything — opening quotes, text, and "
-        "closing quotes — should be on a single line. For a multiline "
-        "docstring the closing '\"\"\"' should be on a line of its own."
+        "Consistent docstring layout signals at a glance whether a docstring "
+        "spans one line or many — a reader should not have to read the "
+        "content to find out. For a one-line docstring, everything — opening "
+        "quotes, text, and closing quotes — should be on a single line. For "
+        "a multiline docstring, the closing '\"\"\"' should be on a line of "
+        "its own, making it easy to see where the docstring ends."
     ),
     'W9007': (
         'block-comment-wrong-indent',
@@ -328,6 +362,13 @@ EXPLANATORY_LANGUAGE = {
         "eye) are easily confused with the digits 1, 0, and 1 respectively. "
         "Choose a more distinctive name that cannot be misread at a glance."
     ),
+    'W0622': (
+        'redefined-builtin',
+        "This name shadows a Python built-in such as 'list', 'id', or 'type'. "
+        "Using a built-in name as a variable or parameter hides the original "
+        "meaning and can cause confusing errors elsewhere in the code. Choose "
+        "a more specific name that describes what the value actually represents."
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -349,17 +390,22 @@ CONSISTENT_CODE = {
     'W9003': (
         'inconsistent-quote-style',
         "This file uses both single-quoted and double-quoted strings without "
-        "a clear reason. Pick one quote style and use it consistently "
-        "throughout the file. The exception is when a string contains the "
-        "quote character itself — use the other style then to avoid "
-        "backslash escapes."
+        "a clear reason. When both styles appear together, a reader will look "
+        "for a pattern — trying to work out whether the choice means something "
+        "— and find there is none. Pick one quote style and use it "
+        "consistently throughout the file. The only exception is when a string "
+        "contains the quote character itself — use the other style then to "
+        "avoid backslash escapes."
     ),
     'W9004': (
         'inconsistent-operator-line-break',
         "This file breaks long expressions both before and after binary "
-        "operators in different places. Pick one style — either always place "
-        "the operator at the end of the line or always at the start of the "
-        "continuation — and apply it consistently throughout the file."
+        "operators in different places. A consistent style lets a reader know "
+        "where to look for operators — either reliably at the end of each "
+        "line or reliably at the start of the next. When the style varies, "
+        "the reader cannot scan predictably and must re-read lines to find "
+        "where each expression continues. Pick one style and apply it "
+        "throughout the file."
     ),
 }
 
