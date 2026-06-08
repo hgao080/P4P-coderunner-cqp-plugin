@@ -73,7 +73,7 @@ class runner {
     }
 
     /**
-     * Run pylint on a code string via Jobe.
+     * Run pylint on a code string via Jobe (used for server-side review panels).
      *
      * @param string $code The Python source code to lint.
      * @param array $options Override options: ['disable' => string].
@@ -111,7 +111,172 @@ class runner {
     }
 
     /**
-     * Build the Python runner script that Jobe will execute.
+     * Run CQP-mapped pylint + pycodestyle + custom checks via Jobe.
+     *
+     * Sends cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py as
+     * Jobe file_list support files alongside the runner script. Returns the
+     * decoded JSON array matching I.json shape, or an error array on failure.
+     *
+     * @param string $code    Student Python source code.
+     * @param array  $options ['disable' => string, 'min_severity' => string]
+     * @return array Decoded JSON array: {success, total_issues, messages[], principles[]}
+     */
+    public function lint_for_button(string $code, array $options = []): array {
+        $empty = ['success' => false, 'total_issues' => 0, 'messages' => [], 'principles' => []];
+
+        if (empty($this->jobeurl)) {
+            return array_merge($empty, ['error' => 'Jobe server not configured.']);
+        }
+
+        $disable = $options['disable'] ?? $this->disablechecks;
+        $runnerscript = $this->build_button_runner_script($disable);
+
+        $filelist = $this->build_file_list();
+        if ($filelist === null) {
+            return array_merge($empty, ['error' => 'CQP support files missing from plugin python/ directory.']);
+        }
+
+        $joberesult = $this->submit_to_jobe($runnerscript, $code, $filelist);
+
+        if ($joberesult['error'] !== '') {
+            return array_merge($empty, ['error' => $joberesult['error']]);
+        }
+
+        $decoded = json_decode($joberesult['stdout'], true);
+        if (!is_array($decoded)) {
+            return array_merge($empty, ['error' => 'Invalid JSON from Jobe runner: ' . substr($joberesult['stdout'], 0, 200)]);
+        }
+
+        return $decoded;
+    }
+
+    /**
+     * Build the Python runner script for the "Check Code Quality" button.
+     *
+     * Reads student code from stdin, calls check_principles() using the three
+     * support files placed by Jobe's file_list, maps violations to I.json
+     * format, and prints JSON to stdout. All exceptions are caught so Jobe
+     * always receives outcome 15.
+     *
+     * @param string $disable Comma-separated codes/names to suppress.
+     * @return string Python source.
+     */
+    private function build_button_runner_script(string $disable): string {
+        $safedisable = addslashes($disable);
+
+        return <<<PYTHON
+import json, sys
+
+DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
+
+PRINCIPLE_KEYS = [
+    'clear_presentation', 'explanatory_language', 'consistent_code',
+    'used_content', 'simple_constructs', 'minimal_duplication',
+    'modular_structure', 'problem_alignment',
+]
+
+PRINCIPLE_NUMBERS = {
+    'clear_presentation': 1, 'explanatory_language': 2, 'consistent_code': 3,
+    'used_content': 4,       'simple_constructs': 5,   'minimal_duplication': 6,
+    'modular_structure': 7,  'problem_alignment': 8,
+}
+
+TYPE_MAP = {'C': 'convention', 'W': 'warning', 'R': 'refactor', 'E': 'error', 'F': 'fatal'}
+
+def code_to_type(code):
+    if code.startswith('W9'):
+        return 'convention'
+    return TYPE_MAP.get(code[0] if code else 'C', 'convention')
+
+try:
+    from cqp_checker import check_principles
+    from cqp_principles import PRINCIPLES
+
+    student_code = sys.stdin.read()
+    results = check_principles(student_code, PRINCIPLE_KEYS)
+
+    all_messages = []
+    principles_out = []
+
+    for result in results:
+        key = next((k for k, v in PRINCIPLES.items() if v['name'] == result['name']), None)
+        if key is None:
+            continue
+        num = PRINCIPLE_NUMBERS.get(key, 0)
+        pdata = PRINCIPLES[key]
+
+        msgs = []
+        for v in result['violations']:
+            if v['code'] in DISABLED or v.get('symbolic_name') in DISABLED:
+                continue
+            msg = {
+                'line':         int(v['line_no']),
+                'type':         code_to_type(v['code']),
+                'symbol':       v['symbolic_name'],
+                'message':      v['explanation'],
+                'cqp_number':   num,
+                'cqp_name':     result['name'],
+                'cqp_guideline': pdata['rationale'],
+            }
+            msgs.append(msg)
+            all_messages.append(msg)
+
+        if msgs:
+            principles_out.append({
+                'number':   num,
+                'name':     result['name'],
+                'short':    pdata['principle'],
+                'guideline': pdata['rationale'],
+                'count':    len(msgs),
+                'messages': msgs,
+            })
+
+    all_messages.sort(key=lambda m: m['line'])
+    output = {
+        'success':      True,
+        'total_issues': len(all_messages),
+        'messages':     all_messages,
+        'principles':   sorted(principles_out, key=lambda p: p['number']),
+    }
+    print(json.dumps(output))
+
+except Exception as exc:
+    print(json.dumps({
+        'success': False, 'error': str(exc),
+        'total_issues': 0, 'messages': [], 'principles': [],
+    }))
+PYTHON;
+    }
+
+    /**
+     * Build the Jobe file_list for the three CQP support files.
+     *
+     * Reads cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py from
+     * the plugin's python/ directory and base64-encodes them.
+     *
+     * @return array|null Array of {name, content} entries, or null if any file missing.
+     */
+    private function build_file_list(): ?array {
+        $pythondir = dirname(__DIR__, 3) . '/python/';
+        $files = ['cqp_checker.py', 'cqp_principles.py', 'cqp_custom_checkers.py'];
+        $filelist = [];
+
+        foreach ($files as $filename) {
+            $path = $pythondir . $filename;
+            if (!file_exists($path)) {
+                return null;
+            }
+            $filelist[] = [
+                'name'    => $filename,
+                'content' => base64_encode(file_get_contents($path)),
+            ];
+        }
+
+        return $filelist;
+    }
+
+    /**
+     * Build the Python runner script that Jobe will execute (review-page pylint path).
      *
      * Reads student code from stdin, writes it to a temp file, runs pylint
      * via the pylint Python API, and prints JSON output to stdout.
@@ -159,10 +324,11 @@ PYTHON;
      * Submit a job to Jobe and return the raw output.
      *
      * @param string $runnerscript Python source code to execute on Jobe.
-     * @param string $studentcode Student code passed as stdin to the runner.
+     * @param string $studentcode  Student code passed as stdin to the runner.
+     * @param array  $filelist     Optional Jobe file_list entries [{name, content}].
      * @return array{stdout: string, stderr: string, returncode: int, error: string}
      */
-    private function submit_to_jobe(string $runnerscript, string $studentcode): array {
+    private function submit_to_jobe(string $runnerscript, string $studentcode, array $filelist = []): array {
         $url = $this->jobeurl . self::JOBE_RUNS_PATH;
 
         $runspec = [
@@ -176,6 +342,10 @@ PYTHON;
                 ],
             ],
         ];
+
+        if (!empty($filelist)) {
+            $runspec['run_spec']['file_list'] = $filelist;
+        }
 
         $payload = json_encode($runspec);
 

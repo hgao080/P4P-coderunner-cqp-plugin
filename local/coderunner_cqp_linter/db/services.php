@@ -33,4 +33,12 @@ $functions = [
         'ajax'          => true,
         'loginrequired' => true,
     ],
+    'local_coderunner_cqp_linter_run_lint' => [
+        'classname'     => 'local_coderunner_cqp_linter\external\run_lint',
+        'methodname'    => 'execute',
+        'description'   => 'Run CQP lint analysis on student code via Jobe and return structured results.',
+        'type'          => 'read',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ],
 ];
