@@ -129,14 +129,15 @@ class runner {
         }
 
         $disable = $options['disable'] ?? $this->disablechecks;
-        $runnerscript = $this->build_button_runner_script($disable);
 
-        $filelist = $this->build_file_list();
-        if ($filelist === null) {
+        $filecontents = $this->read_support_files();
+        if ($filecontents === null) {
             return array_merge($empty, ['error' => 'CQP support files missing from plugin python/ directory.']);
         }
 
-        $joberesult = $this->submit_to_jobe($runnerscript, $code, $filelist);
+        $runnerscript = $this->build_button_runner_script($disable, $filecontents);
+
+        $joberesult = $this->submit_to_jobe($runnerscript, $code);
 
         if ($joberesult['error'] !== '') {
             return array_merge($empty, ['error' => $joberesult['error']]);
@@ -153,21 +154,35 @@ class runner {
     /**
      * Build the Python runner script for the "Check Code Quality" button.
      *
-     * Reads student code from stdin, calls check_principles() using the three
-     * support files placed by Jobe's file_list, maps violations to I.json
-     * format, and prints JSON to stdout. All exceptions are caught so Jobe
-     * always receives outcome 15.
+     * Embeds cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py as
+     * base64 strings and writes them to the Jobe working directory before
+     * importing. This avoids Jobe's file_list pre-upload requirement.
      *
-     * @param string $disable Comma-separated codes/names to suppress.
+     * @param string $disable      Comma-separated codes/names to suppress.
+     * @param array  $filecontents ['filename' => base64string] for the 3 support files.
      * @return string Python source.
      */
-    private function build_button_runner_script(string $disable): string {
+    private function build_button_runner_script(string $disable, array $filecontents): string {
         $safedisable = addslashes($disable);
 
+        // Build Python dict literal — base64 chars are safe in single-quoted strings.
+        $filesdict = '';
+        foreach ($filecontents as $name => $b64) {
+            $filesdict .= "    '" . $name . "': '" . $b64 . "',\n";
+        }
+
         return <<<PYTHON
-import json, sys
+import base64, json, os, sys
+
+_SUPPORT_FILES = {
+$filesdict}
+for _name, _b64 in _SUPPORT_FILES.items():
+    with open(_name, 'wb') as _f:
+        _f.write(base64.b64decode(_b64))
 
 DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
+
+
 
 PRINCIPLE_KEYS = [
     'clear_presentation', 'explanatory_language', 'consistent_code',
@@ -249,30 +264,24 @@ PYTHON;
     }
 
     /**
-     * Build the Jobe file_list for the three CQP support files.
+     * Read the three CQP support files from the plugin's python/ directory.
      *
-     * Reads cqp_checker.py, cqp_principles.py, cqp_custom_checkers.py from
-     * the plugin's python/ directory and base64-encodes them.
-     *
-     * @return array|null Array of {name, content} entries, or null if any file missing.
+     * @return array|null ['filename' => base64string] for each file, or null if any missing.
      */
-    private function build_file_list(): ?array {
+    private function read_support_files(): ?array {
         $pythondir = dirname(__DIR__, 3) . '/python/';
         $files = ['cqp_checker.py', 'cqp_principles.py', 'cqp_custom_checkers.py'];
-        $filelist = [];
+        $contents = [];
 
         foreach ($files as $filename) {
             $path = $pythondir . $filename;
             if (!file_exists($path)) {
                 return null;
             }
-            $filelist[] = [
-                'name'    => $filename,
-                'content' => base64_encode(file_get_contents($path)),
-            ];
+            $contents[$filename] = base64_encode(file_get_contents($path));
         }
 
-        return $filelist;
+        return $contents;
     }
 
     /**
@@ -325,10 +334,9 @@ PYTHON;
      *
      * @param string $runnerscript Python source code to execute on Jobe.
      * @param string $studentcode  Student code passed as stdin to the runner.
-     * @param array  $filelist     Optional Jobe file_list entries [{name, content}].
      * @return array{stdout: string, stderr: string, returncode: int, error: string}
      */
-    private function submit_to_jobe(string $runnerscript, string $studentcode, array $filelist = []): array {
+    private function submit_to_jobe(string $runnerscript, string $studentcode): array {
         $url = $this->jobeurl . self::JOBE_RUNS_PATH;
 
         $runspec = [
@@ -342,10 +350,6 @@ PYTHON;
                 ],
             ],
         ];
-
-        if (!empty($filelist)) {
-            $runspec['run_spec']['file_list'] = $filelist;
-        }
 
         $payload = json_encode($runspec);
 
