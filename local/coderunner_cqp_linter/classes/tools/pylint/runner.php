@@ -100,7 +100,7 @@ class runner {
                 'CQP support files missing from plugin python/ directory.');
         }
 
-        $runnerscript = $this->build_runner_script($disable, $filecontents['cqp_principles.py']);
+        $runnerscript = $this->build_runner_script($disable, $filecontents['cqp_principles.py'], $filecontents['cqp_custom_checkers.py'] ?? '');
 
         $joberesult = $this->submit_to_jobe($runnerscript, $code);
         $executiontime = microtime(true) - $starttime;
@@ -170,14 +170,18 @@ class runner {
      * @return string Python source.
      */
     private function build_button_runner_script(string $disable, array $filecontents): string {
-        $safedisable = addslashes($disable);
+        $safedisable   = addslashes($disable);
         $principlesb64 = $filecontents['cqp_principles.py'] ?? '';
+        $checkerb64    = $filecontents['cqp_custom_checkers.py'] ?? '';
 
         return <<<PYTHON
-import base64, io, json, os, sys, tempfile
+import base64, io, json, os, re, sys, tempfile
 
 with open('cqp_principles.py', 'wb') as _f:
     _f.write(base64.b64decode('$principlesb64'))
+
+with open('cqp_custom_checkers.py', 'wb') as _f:
+    _f.write(base64.b64decode('$checkerb64'))
 
 from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
 
@@ -262,6 +266,30 @@ try:
             except OSError:
                 pass
 
+    custom_codes = [c for c in code_map if c in CUSTOM_CODES]
+    if custom_codes:
+        from cqp_custom_checkers import run_custom_checks
+        custom_out = run_custom_checks(student_code, custom_codes)
+        for _line in custom_out.strip().splitlines():
+            if not _line:
+                continue
+            _m = re.match(r'source\.py:(\d+):(\d+): (\w+)', _line)
+            if _m:
+                _lineno, _col, _code = int(_m.group(1)), int(_m.group(2)), _m.group(3)
+                if _code in code_map:
+                    _info = code_map[_code]
+                    _num = PRINCIPLE_NUMBERS.get(_info['key'], 0)
+                    _pdata = PRINCIPLES[_info['key']]
+                    all_messages.append({
+                        'line':          _lineno,
+                        'type':          'convention',
+                        'symbol':        _info['sym'],
+                        'message':       _info['expl'],
+                        'cqp_number':    _num,
+                        'cqp_name':      _pdata['name'],
+                        'cqp_guideline': _pdata['rationale'],
+                    })
+
     all_messages.sort(key=lambda m: m['line'])
 
     by_key = {}
@@ -308,11 +336,16 @@ PYTHON;
      * @return array|null ['cqp_principles.py' => base64string], or null if missing.
      */
     private function read_support_files(): ?array {
-        $path = dirname(__DIR__, 3) . '/python/cqp_principles.py';
-        if (!file_exists($path)) {
+        $dir = dirname(__DIR__, 3) . '/python/';
+        $principlespath = $dir . 'cqp_principles.py';
+        $checkerpath    = $dir . 'cqp_custom_checkers.py';
+        if (!file_exists($principlespath) || !file_exists($checkerpath)) {
             return null;
         }
-        return ['cqp_principles.py' => base64_encode(file_get_contents($path))];
+        return [
+            'cqp_principles.py'      => base64_encode(file_get_contents($principlespath)),
+            'cqp_custom_checkers.py' => base64_encode(file_get_contents($checkerpath)),
+        ];
     }
 
     /**
@@ -326,14 +359,17 @@ PYTHON;
      * @param string $principlesb64 Base64-encoded cqp_principles.py content.
      * @return string Python source code for the runner script.
      */
-    private function build_runner_script(string $disable, string $principlesb64): string {
+    private function build_runner_script(string $disable, string $principlesb64, string $checkerb64): string {
         $safedisable = addslashes($disable);
 
         return <<<PYTHON
-import base64, io, os, sys, tempfile
+import base64, io, json, os, re, sys, tempfile
 
 with open('cqp_principles.py', 'wb') as _f:
     _f.write(base64.b64decode('$principlesb64'))
+
+with open('cqp_custom_checkers.py', 'wb') as _f:
+    _f.write(base64.b64decode('$checkerb64'))
 
 from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
 
@@ -351,7 +387,7 @@ for key in PRINCIPLE_KEYS:
         continue
     for code, (sym, expl) in PRINCIPLES[key]['codes'].items():
         if code not in DISABLED and sym not in DISABLED:
-            code_map[code] = sym
+            code_map[code] = {'sym': sym, 'expl': expl, 'key': key}
 
 pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
 
@@ -372,7 +408,32 @@ try:
         Run(args + [path], exit=False)
     finally:
         sys.stdout = _real_stdout
-    print(_captured.getvalue())
+
+    result = json.loads(_captured.getvalue() or '{"messages": [], "statistics": {}}')
+
+    custom_codes = [c for c in code_map if c in CUSTOM_CODES]
+    if custom_codes:
+        from cqp_custom_checkers import run_custom_checks
+        custom_out = run_custom_checks(student_code, custom_codes)
+        for _line in custom_out.strip().splitlines():
+            if not _line:
+                continue
+            _m = re.match(r'source\.py:(\d+):(\d+): (\w+)', _line)
+            if _m:
+                _lineno, _col, _code = int(_m.group(1)), int(_m.group(2)), _m.group(3)
+                if _code in code_map:
+                    _info = code_map[_code]
+                    result.setdefault('messages', []).append({
+                        'type':       'convention',
+                        'symbol':     _info['sym'],
+                        'message-id': _code,
+                        'message':    _info['expl'],
+                        'line':       _lineno,
+                        'column':     _col,
+                    })
+
+    print(json.dumps(result))
+
 except Exception as e:
     print(str(e), file=sys.stderr)
     sys.exit(1)

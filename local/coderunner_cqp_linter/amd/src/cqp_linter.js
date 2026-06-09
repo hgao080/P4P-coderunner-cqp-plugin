@@ -66,14 +66,8 @@ define(['core/ajax'], function(Ajax) {
     /**
      * Annotation type for an Ace gutter marker, derived from the lint severity.
      */
-    function annotationType(msgType) {
-        if (msgType === 'error' || msgType === 'fatal') {
-            return 'error';
-        }
-        if (msgType === 'warning') {
-            return 'warning';
-        }
-        return 'info';
+    function annotationType() {
+        return 'warning';
     }
 
     /**
@@ -149,9 +143,9 @@ define(['core/ajax'], function(Ajax) {
                 // shows one merged entry when two issues end up on one line
                 // after edits.
                 var key = row + '|' + annotationType(t.msg.type);
-                var text = 'CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name + '\n' +
-                           t.msg.message + '\n\n' +
-                           t.msg.cqp_guideline;
+                var text = 'CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name +
+                           ' (' + t.msg.symbol + ')\n' +
+                           t.msg.message;
                 if (seen[key] !== undefined) {
                     annotations[seen[key]].text += '\n\n---\n\n' + text;
                     return;
@@ -170,9 +164,11 @@ define(['core/ajax'], function(Ajax) {
         refreshAnnotations();
 
         var onChange = function() {
-            refreshAnnotations();
-            // Force the marker layer to redraw with the updated anchor rows.
-            session._signal('changeBackMarker');
+            // Defer one tick so Ace anchor positions settle before we read them.
+            setTimeout(function() {
+                refreshAnnotations();
+                session._signal('changeBackMarker');
+            }, 0);
         };
         session.on('change', onChange);
 

@@ -83,6 +83,8 @@ class cqp_mapper {
         // CQP 1: Clear Presentation — formatting, layout, whitespace.
         'line-too-long' => 1,
         'trailing-whitespace' => 1,
+        'docstring-closing-quote-placement' => 1,
+        'block-comment-wrong-indent' => 1,
         'missing-final-newline' => 1,
         'mixed-indentation' => 1,
         'bad-indentation' => 1,
@@ -94,6 +96,7 @@ class cqp_mapper {
         'mixed-line-endings' => 1,
 
         // CQP 2: Explanatory Language — naming, documentation, magic numbers.
+        'ambiguous-variable-name' => 2,
         'missing-module-docstring' => 2,
         'missing-function-docstring' => 2,
         'missing-class-docstring' => 2,
@@ -110,6 +113,8 @@ class cqp_mapper {
         // CQP 3: Consistent Code — consistency in style and approach.
         'inconsistent-return-statements' => 3,
         'inconsistent-quotes' => 3,
+        'inconsistent-quote-style' => 3,
+        'inconsistent-operator-line-break' => 3,
         'consider-using-f-string' => 3,
         'use-implicit-booleaness-not-comparison-to-zero' => 3,
         'use-implicit-booleaness-not-comparison-to-string' => 3,
@@ -137,6 +142,7 @@ class cqp_mapper {
         'import-self' => 4,
 
         // CQP 5: Simple Constructs — complexity, nesting, control flow.
+        'avoidable-backslash-in-string' => 5,
         'too-many-branches' => 5,
         'too-many-nested-blocks' => 5,
         'too-many-return-statements' => 5,
@@ -167,6 +173,7 @@ class cqp_mapper {
         'duplicate-code' => 6,
 
         // CQP 7: Modular Structure — function size, arguments, scope.
+        'constant-in-function-scope' => 7,
         'too-many-arguments' => 7,
         'too-many-locals' => 7,
         'too-many-lines' => 7,
