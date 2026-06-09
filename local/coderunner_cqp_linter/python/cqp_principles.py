@@ -27,7 +27,7 @@ equivalents are noted in comments.
 # Any code not listed here is assumed to be a Pylint code.
 # ---------------------------------------------------------------------------
 PYCODESTYLE_CODES = frozenset({
-    'E101', 'W191',                    # tabs vs spaces
+    'W191',                            # tab indentation
     'E201', 'E202', 'E203',            # whitespace inside brackets
     'E211',                            # whitespace before bracket
     'E221', 'E222', 'E225',            # whitespace around operators
@@ -95,12 +95,6 @@ CLEAR_PRESENTATION = {
     ),
     # --- pycodestyle codes ---
 
-    'E101': (
-        'indentation-contains-mixed-spaces-and-tabs',
-        "This line mixes tabs and spaces for indentation. Python requires "
-        "consistent indentation — mixing the two causes confusing errors and "
-        "makes the structure of the code unpredictable across different editors."
-    ),
     'W191': (
         'indentation-contains-tabs',
         "This line uses a tab character for indentation. PEP 8 requires spaces "

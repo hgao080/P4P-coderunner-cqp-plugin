@@ -205,6 +205,23 @@ tr:last-child td { border-bottom: none; }
   font-size: 0.72rem;
 }
 
+/* ── Legend ─────────────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin-top: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 /* ── Uncoverable rows ───────────────────────────────────── */
 
 tr.dim td {
@@ -234,10 +251,15 @@ tr.dim .guideline {
   <p>
     Guidelines from Kirk, Luxton-Reilly &amp; Tempero,
     <em>"Distilling PEP 8 for Teaching Introductory Programming"</em>, ACE 2025 (Tables 5 &amp; 6).
-    Checker codes from <code>cqp_principles.py</code>.
     Violation messages are shown verbatim as displayed to students.
     Dimmed rows indicate guidelines not statically checkable by the current toolset.
   </p>
+  <div class="legend">
+    <div class="legend-item"><span class="badge badge-pylint">Pylint</span> 4-digit codes (C0xxx, W0xxx, R0xxx)</div>
+    <div class="legend-item"><span class="badge badge-pycode">pycodestyle</span> 3-digit codes (Exxx, Wxxx)</div>
+    <div class="legend-item"><span class="badge badge-custom">Custom</span> W90xx — project-specific checkers</div>
+    <div class="legend-item"><span class="badge badge-none">None</span> not statically checkable</div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════ -->
@@ -269,12 +291,11 @@ tr.dim .guideline {
 
       <tr>
         <td class="gid">G6</td>
-        <td><div class="codes"><span class="code-tag">E101</span><span class="code-tag">W191</span></div></td>
+        <td><div class="codes"><span class="code-tag">W191</span></div></td>
         <td><span class="badge badge-pycode">pycodestyle</span></td>
         <td>
           <div class="guideline">Spaces are the preferred indentation method.</div>
-          <div class="vmsg"><strong>E101:</strong> This line mixes tabs and spaces for indentation. Python requires consistent indentation — mixing the two causes confusing errors and makes the structure of the code unpredictable across different editors.</div>
-          <div class="vmsg"><strong>W191:</strong> This line uses a tab character for indentation. PEP 8 requires spaces — specifically 4 spaces per level. Tabs render differently in different editors, making the code look inconsistent to different readers.</div>
+          <div class="vmsg">This line uses a tab character for indentation. PEP 8 requires spaces — specifically 4 spaces per level. Tabs render differently in different editors, making the code look inconsistent to different readers.</div>
         </td>
       </tr>
 
