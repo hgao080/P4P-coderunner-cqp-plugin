@@ -11,6 +11,9 @@
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" COMMENT="Whether linting is enabled for this question"/>
         <FIELD NAME="disabled_checks" TYPE="text" NOTNULL="false" COMMENT="Comma-separated pylint checks to disable for this question"/>
         <FIELD NAME="min_severity" TYPE="char" LENGTH="20" NOTNULL="false" COMMENT="Minimum severity override: convention, refactor, warning, error"/>
+        <FIELD NAME="marks_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Whether style check marks mode is enabled for this question"/>
+        <FIELD NAME="marks_weight" TYPE="number" LENGTH="8" DECIMALS="3" NOTNULL="false" COMMENT="Mark weight for the injected style check test case"/>
+        <FIELD NAME="original_allornothing" TYPE="int" LENGTH="1" NOTNULL="false" COMMENT="Saved allornothing value from question_coderunner_options, restored when marks mode is disabled"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
         <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
       </FIELDS>
