@@ -88,20 +88,73 @@ class question_helper {
     /**
      * Check if linting is enabled for a specific question.
      *
-     * Linting is strictly opt-in per question: a row in local_crcqp_qconfig
-     * with enabled=1 is required. Questions without a row are never linted.
-     *
      * @param int $questionid The question ID.
      * @return bool True if linting is enabled for this question.
      */
     public static function is_lint_enabled(int $questionid): bool {
+        $config = self::get_qconfig($questionid);
+        return $config ? (bool)$config->enabled : false;
+    }
+
+    /**
+     * Get the CQP config record for a question, falling back to previous versions.
+     *
+     * In Moodle 4.x, editing a question creates a new question ID (new version).
+     * This method checks the direct row first, then walks back through
+     * question_versions to find the most recent version that has a config row,
+     * copies it to the current question ID, and returns it — so subsequent reads
+     * are always fast direct lookups.
+     *
+     * @param int $questionid The question ID.
+     * @return \stdClass|false The config record, or false if none exists.
+     */
+    public static function get_qconfig(int $questionid) {
         global $DB;
 
         $config = $DB->get_record('local_crcqp_qconfig', ['questionid' => $questionid]);
-        if (!$config) {
+        if ($config) {
+            return $config;
+        }
+
+        // Moodle 4+: check previous versions of the same bank entry.
+        if (!$DB->get_manager()->table_exists('question_versions')) {
             return false;
         }
-        return (bool)$config->enabled;
+
+        $ver = $DB->get_record('question_versions', ['questionid' => $questionid]);
+        if (!$ver) {
+            return false;
+        }
+
+        $rows = $DB->get_records_sql(
+            'SELECT qc.* FROM {local_crcqp_qconfig} qc
+              JOIN {question_versions} qv ON qv.questionid = qc.questionid
+             WHERE qv.questionbankentryid = :entryid
+             ORDER BY qv.version DESC',
+            ['entryid' => $ver->questionbankentryid],
+            0, 1
+        );
+        $prevconfig = $rows ? reset($rows) : false;
+        if (!$prevconfig) {
+            return false;
+        }
+
+        // Lazily copy the config to the current question ID.
+        $now = time();
+        $newconfig = clone $prevconfig;
+        unset($newconfig->id);
+        $newconfig->questionid   = $questionid;
+        $newconfig->timecreated  = $now;
+        $newconfig->timemodified = $now;
+        try {
+            $newconfig->id = $DB->insert_record('local_crcqp_qconfig', $newconfig);
+        } catch (\dml_exception $e) {
+            // Race condition: another request already inserted the row.
+            $existing = $DB->get_record('local_crcqp_qconfig', ['questionid' => $questionid]);
+            return $existing ?: $prevconfig;
+        }
+
+        return $newconfig;
     }
 
     /**
@@ -138,20 +191,17 @@ class question_helper {
      * @return array Configuration array with keys: disable, min_severity, rcfile.
      */
     public static function get_lint_config(int $questionid): array {
-        global $DB;
-
         // Start with admin defaults.
         $config = [
-            'disable' => get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error',
+            'disable'      => get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error',
             'min_severity' => get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention',
-            'rcfile' => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
+            'rcfile'       => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
         ];
 
         // Merge per-question overrides.
-        $qconfig = $DB->get_record('local_crcqp_qconfig', ['questionid' => $questionid]);
+        $qconfig = self::get_qconfig($questionid);
         if ($qconfig) {
             if (!empty($qconfig->disabled_checks)) {
-                // Append question-specific disabled checks to the global ones.
                 $config['disable'] .= ',' . $qconfig->disabled_checks;
             }
             if (!empty($qconfig->min_severity)) {

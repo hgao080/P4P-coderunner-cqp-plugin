@@ -31,4 +31,10 @@ $observers = [
         'priority'  => 0,
         'internal'  => false, // Run asynchronously via event queue to avoid blocking submission.
     ],
+    [
+        'eventname' => '\core\event\question_updated',
+        'callback'  => '\local_coderunner_cqp_linter\observer::question_updated',
+        'priority'  => 0,
+        'internal'  => true,
+    ],
 ];

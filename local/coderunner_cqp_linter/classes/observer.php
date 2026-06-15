@@ -30,6 +30,73 @@ namespace local_coderunner_cqp_linter;
 class observer {
 
     /**
+     * Handle question update — propagate CQP config to the new question version.
+     *
+     * Moodle 4.x creates a new question ID each time a question is saved as a
+     * new version. This copies the per-question CQP config row to the new ID so
+     * the linting toggle and marks settings survive a teacher's edit.
+     *
+     * @param \core\event\question_updated $event The event.
+     */
+    public static function question_updated(\core\event\question_updated $event): void {
+        try {
+            self::propagate_config_to_new_version($event->objectid);
+        } catch (\Throwable $e) {
+            debugging('CodeRunner CQP Linter question_updated error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
+     * Copy local_crcqp_qconfig from the previous question version to the new one.
+     *
+     * Does nothing when the question already has a config row (in-place update, not
+     * a new version) or when there is no previous version to copy from.
+     *
+     * @param int $questionid The new question ID from the question_updated event.
+     */
+    private static function propagate_config_to_new_version(int $questionid): void {
+        global $DB;
+
+        // Already has config — either an in-place update or already propagated.
+        if ($DB->record_exists('local_crcqp_qconfig', ['questionid' => $questionid])) {
+            return;
+        }
+
+        // question_versions only exists in Moodle 4+.
+        if (!$DB->get_manager()->table_exists('question_versions')) {
+            return;
+        }
+
+        $ver = $DB->get_record('question_versions', ['questionid' => $questionid]);
+        if (!$ver || (int)$ver->version <= 1) {
+            return; // First version — nothing to copy.
+        }
+
+        $prevver = $DB->get_record_sql(
+            'SELECT questionid FROM {question_versions}
+              WHERE questionbankentryid = :entryid
+                AND version = :ver',
+            ['entryid' => $ver->questionbankentryid, 'ver' => (int)$ver->version - 1]
+        );
+        if (!$prevver) {
+            return;
+        }
+
+        $oldconfig = $DB->get_record('local_crcqp_qconfig', ['questionid' => $prevver->questionid]);
+        if (!$oldconfig) {
+            return;
+        }
+
+        $now = time();
+        $newconfig = clone $oldconfig;
+        unset($newconfig->id);
+        $newconfig->questionid  = $questionid;
+        $newconfig->timecreated = $now;
+        $newconfig->timemodified = $now;
+        $DB->insert_record('local_crcqp_qconfig', $newconfig);
+    }
+
+    /**
      * Handle quiz attempt submission.
      *
      * Iterates through all question attempts in the quiz and runs pylint
