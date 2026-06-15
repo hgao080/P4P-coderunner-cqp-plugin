@@ -53,6 +53,8 @@ if ($existing) {
         'enabled'         => (int)$existing->enabled,
         'disabled_checks' => $existing->disabled_checks,
         'min_severity'    => $existing->min_severity ?: '',
+        'marks_enabled'   => (int)($existing->marks_enabled ?? 0),
+        'marks_weight'    => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
         'questionid'      => $questionid,
         'returnurl'       => $returnurl,
     ]);
@@ -64,14 +66,42 @@ if ($form->is_cancelled()) {
     redirect($redirecturl);
 } else if ($data = $form->get_data()) {
     $now = time();
+
+    $marksenabledold = !empty($existing->marks_enabled);
+    $marksenablednew = !empty($data->marks_enabled);
+    $weight          = max(0.001, (float)($data->marks_weight ?? 1.0));
+    // Combine global + per-question disabled checks, same logic as get_lint_config().
+    $globaldisable   = get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error';
+    $questdisable    = trim((string)($data->disabled_checks ?? ''));
+    $disabled        = $questdisable !== '' ? $globaldisable . ',' . $questdisable : $globaldisable;
+    $minseverity     = !empty($data->min_severity) ? $data->min_severity
+                        : (get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention');
+
+    $originalaon = isset($existing->original_allornothing) ? (int)$existing->original_allornothing : null;
+
+    if ($marksenablednew) {
+        // Enable or re-enable (re-injects with current config).
+        $originalaon = \local_coderunner_cqp_linter\question_marks_manager::enable(
+            $questionid, $weight, $disabled, $minseverity
+        );
+    } else if ($marksenabledold && !$marksenablednew) {
+        // Disabling marks mode: restore allornothing.
+        $restorevalue = $originalaon ?? 1;
+        \local_coderunner_cqp_linter\question_marks_manager::disable($questionid, $restorevalue);
+        $originalaon = null;
+    }
+
     $record = (object)[
-        'questionid'      => $questionid,
-        'enabled'         => !empty($data->enabled) ? 1 : 0,
-        'disabled_checks' => trim((string)($data->disabled_checks ?? '')) !== ''
-                                ? trim((string)$data->disabled_checks)
-                                : null,
-        'min_severity'    => !empty($data->min_severity) ? $data->min_severity : null,
-        'timemodified'    => $now,
+        'questionid'           => $questionid,
+        'enabled'              => !empty($data->enabled) ? 1 : 0,
+        'disabled_checks'      => trim((string)($data->disabled_checks ?? '')) !== ''
+                                    ? trim((string)$data->disabled_checks)
+                                    : null,
+        'min_severity'         => !empty($data->min_severity) ? $data->min_severity : null,
+        'marks_enabled'        => $marksenablednew ? 1 : 0,
+        'marks_weight'         => $marksenablednew ? $weight : null,
+        'original_allornothing' => $originalaon,
+        'timemodified'         => $now,
     ];
     if ($existing) {
         $record->id = $existing->id;

@@ -1,14 +1,15 @@
 /**
- * CQP Linter — adds a "Check Code Quality" button to CodeRunner questions
- * and highlights violations inline in the Ace editor with CQP principle annotations.
+ * CQP Linter — adds a "Check Code Quality" button to CodeRunner questions.
  *
- * All analysis happens client-side via python_analyser.js. No code is sent to any server.
+ * Sends student code to the Moodle web service which forwards it to the Jobe
+ * sandbox for pylint/pycodestyle/custom analysis, then renders violations
+ * inline in the Ace editor and in a results panel below the answer box.
  *
  * @module     local_coderunner_cqp_linter/cqp_linter
  * @copyright  2026 Your Name
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(Analyser, Ajax) {
+define(['core/ajax'], function(Ajax) {
     'use strict';
 
     /** CSS class prefix for CQP severity highlighting in the Ace editor. */
@@ -65,14 +66,8 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
     /**
      * Annotation type for an Ace gutter marker, derived from the lint severity.
      */
-    function annotationType(msgType) {
-        if (msgType === 'error' || msgType === 'fatal') {
-            return 'error';
-        }
-        if (msgType === 'warning') {
-            return 'warning';
-        }
-        return 'info';
+    function annotationType() {
+        return 'warning';
     }
 
     /**
@@ -148,9 +143,9 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
                 // shows one merged entry when two issues end up on one line
                 // after edits.
                 var key = row + '|' + annotationType(t.msg.type);
-                var text = 'CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name + '\n' +
-                           t.msg.message + '\n\n' +
-                           t.msg.cqp_guideline;
+                var text = 'CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name +
+                           ' (' + t.msg.symbol + ')\n' +
+                           t.msg.message;
                 if (seen[key] !== undefined) {
                     annotations[seen[key]].text += '\n\n---\n\n' + text;
                     return;
@@ -169,9 +164,11 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
         refreshAnnotations();
 
         var onChange = function() {
-            refreshAnnotations();
-            // Force the marker layer to redraw with the updated anchor rows.
-            session._signal('changeBackMarker');
+            // Defer one tick so Ace anchor positions settle before we read them.
+            setTimeout(function() {
+                refreshAnnotations();
+                session._signal('changeBackMarker');
+            }, 0);
         };
         session.on('change', onChange);
 
@@ -181,7 +178,7 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
     /**
      * Build the results panel HTML to show below the editor.
      *
-     * @param {Object} data The analysis result from python_analyser.
+     * @param {Object} data The analysis result from the web service.
      * @return {string} HTML string.
      */
     function buildResultsPanel(data) {
@@ -317,7 +314,7 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
      *
      * @param {Object} slotInfo {slot, questionid} from the PHP init config.
      * @param {number} issuecount Total issues found.
-     * @param {Array}  principles Principle summary from Analyser output.
+     * @param {Array}  principles Principle summary from the lint response.
      */
     function recordLintEvent(slotInfo, issuecount, principles) {
         var urlParams = new URLSearchParams(window.location.search);
@@ -376,22 +373,59 @@ define(['local_coderunner_cqp_linter/python_analyser', 'core/ajax'], function(An
                 return;
             }
 
+            // Disable button during request (V7).
+            btn.disabled = true;
+            btn.textContent = 'Checking…';
+
             var editor = findAceEditor(questionDiv);
             if (editor) {
                 clearAnnotations(editor, currentState);
                 currentState = null;
             }
 
-            var data = Analyser.analyse(code);
+            Ajax.call([{
+                methodname: 'local_coderunner_cqp_linter_run_lint',
+                args: {
+                    questionid: slotInfo.questionid,
+                    code:       code
+                }
+            }])[0].then(function(jsonStr) {
+                var data;
+                try {
+                    data = JSON.parse(jsonStr);
+                } catch (e) {
+                    data = null;
+                }
 
-            if (editor && data.messages.length > 0) {
-                currentState = applyAnnotations(editor, data.messages);
-            }
+                if (!data || !data.success) {
+                    var errMsg = (data && data.error) ? data.error : 'Lint check failed. Please try again.';
+                    resultsDiv.innerHTML = '<div class="alert alert-warning" style="margin-top:0.5rem;">' +
+                        escapeHtml(errMsg) + '</div>';
+                    resultsDiv.style.display = '';
+                    btn.disabled = false;
+                    btn.textContent = 'Check Code Quality';
+                    return;
+                }
 
-            resultsDiv.innerHTML = buildResultsPanel(data);
-            resultsDiv.style.display = '';
+                if (editor && data.messages.length > 0) {
+                    currentState = applyAnnotations(editor, data.messages);
+                }
 
-            recordLintEvent(slotInfo, data.total_issues, data.principles);
+                resultsDiv.innerHTML = buildResultsPanel(data);
+                resultsDiv.style.display = '';
+
+                recordLintEvent(slotInfo, data.total_issues, data.principles);
+
+                btn.disabled = false;
+                btn.textContent = 'Check Code Quality';
+
+            }).catch(function() {
+                resultsDiv.innerHTML = '<div class="alert alert-warning" style="margin-top:0.5rem;">' +
+                    'Could not reach the lint service. Please try again.</div>';
+                resultsDiv.style.display = '';
+                btn.disabled = false;
+                btn.textContent = 'Check Code Quality';
+            });
         });
 
         wrapper.appendChild(btn);

@@ -62,6 +62,22 @@ class manage_form extends \moodleform {
             $severityoptions);
         $mform->setDefault('min_severity', '');
 
+        $mform->addElement('header', 'marks_header', get_string('manage_marks_header', 'local_coderunner_cqp_linter'));
+
+        $mform->addElement('advcheckbox', 'marks_enabled',
+            get_string('manage_marks_enabled', 'local_coderunner_cqp_linter'),
+            get_string('manage_marks_enabled_label', 'local_coderunner_cqp_linter'));
+        $mform->setDefault('marks_enabled', 0);
+        $mform->addHelpButton('marks_enabled', 'manage_marks_enabled', 'local_coderunner_cqp_linter');
+
+        $mform->addElement('text', 'marks_weight',
+            get_string('manage_marks_weight', 'local_coderunner_cqp_linter'),
+            ['size' => 8]);
+        $mform->setType('marks_weight', PARAM_FLOAT);
+        $mform->setDefault('marks_weight', 1.0);
+        $mform->addRule('marks_weight', null, 'numeric', null, 'client');
+        $mform->disabledIf('marks_weight', 'marks_enabled', 'notchecked');
+
         $mform->addElement('hidden', 'questionid', $customdata['questionid']);
         $mform->setType('questionid', PARAM_INT);
 

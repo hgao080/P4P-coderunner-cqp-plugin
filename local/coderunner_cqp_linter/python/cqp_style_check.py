@@ -1,0 +1,115 @@
+"""Style check module for CQP marks mode.
+
+check_style(source, disabled_str, min_severity) -> 'Style OK' | 'Style issues found: N violation(s)'
+
+Intended to be imported by CodeRunner test case code after cqp_principles.py and
+cqp_custom_checkers.py have been written to disk by the template prepend block.
+"""
+import io
+import json
+import os
+import re
+import sys
+import tempfile
+
+SEVERITY_ORDER = ['convention', 'refactor', 'warning', 'error', 'fatal']
+_TYPE_MAP = {'C': 'convention', 'W': 'warning', 'R': 'refactor', 'E': 'error', 'F': 'fatal'}
+
+
+def _code_to_severity(code):
+    if code.startswith('W9'):
+        return 'convention'
+    return _TYPE_MAP.get(code[0] if code else 'C', 'convention')
+
+
+def check_style(source, disabled_str='import-error', min_severity='convention'):
+    """Run CQP pylint + custom checks on source code.
+
+    Returns 'Style OK' if no violations at or above min_severity,
+    'Style issues found: N violation(s)' if violations exist, or
+    'Style check failed' if the checker itself errors (so a checker crash
+    costs the style mark rather than corrupting the combinator output).
+
+    stdout is captured internally so pylint output never leaks into CodeRunner's
+    graded output stream.
+    """
+    try:
+        from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
+
+        principle_keys = [
+            'clear_presentation', 'explanatory_language', 'consistent_code',
+            'used_content', 'simple_constructs', 'minimal_duplication',
+            'modular_structure', 'problem_alignment',
+        ]
+
+        disabled = set(s.strip() for s in disabled_str.split(',') if s.strip())
+        min_sev_idx = SEVERITY_ORDER.index(min_severity) if min_severity in SEVERITY_ORDER else 0
+
+        code_map = {}
+        for key in principle_keys:
+            if key not in PRINCIPLES:
+                continue
+            for code, (sym, expl) in PRINCIPLES[key]['codes'].items():
+                if code not in disabled and sym not in disabled:
+                    code_map[code] = {'sym': sym, 'key': key}
+
+        pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
+        violations = 0
+
+        if pylint_codes:
+            with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as f:
+                f.write(source)
+                tmppath = f.name
+            try:
+                from pylint.lint import Run
+                _real_stdout = sys.stdout
+                _captured = io.StringIO()
+                sys.stdout = _captured
+                try:
+                    Run([
+                        '--disable=all',
+                        '--enable=' + ','.join(pylint_codes),
+                        '--output-format=json2',
+                        '--score=n',
+                        tmppath,
+                    ], exit=False)
+                finally:
+                    sys.stdout = _real_stdout
+
+                result = json.loads(_captured.getvalue() or '{}')
+                for msg in result.get('messages', []):
+                    code = msg.get('messageId') or msg.get('message-id', '')
+                    if code not in code_map:
+                        continue
+                    sev = _code_to_severity(code)
+                    sev_idx = SEVERITY_ORDER.index(sev) if sev in SEVERITY_ORDER else 0
+                    if sev_idx >= min_sev_idx:
+                        violations += 1
+            finally:
+                try:
+                    os.unlink(tmppath)
+                except OSError:
+                    pass
+
+        custom_codes = [c for c in code_map if c in CUSTOM_CODES]
+        if custom_codes:
+            try:
+                from cqp_custom_checkers import run_custom_checks
+                custom_out = run_custom_checks(source, custom_codes)
+                for line in custom_out.strip().splitlines():
+                    if not line:
+                        continue
+                    m = re.match(r'source\.py:\d+:\d+: (\w+)', line)
+                    if m:
+                        code = m.group(1)
+                        if code in code_map:
+                            violations += 1
+            except ImportError:
+                pass
+
+        if violations == 0:
+            return 'Style OK'
+        return f'Style issues found: {violations} violation(s)'
+
+    except Exception:
+        return 'Style check failed'

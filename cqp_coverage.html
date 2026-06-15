@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CQP Checker Coverage</title>
+<style>
+:root {
+  --bg:           #f4f4f0;
+  --surface:      #ffffff;
+  --border:       #e2e2dc;
+  --row-sep:      #ececea;
+  --head-bg:      #f9f9f7;
+  --dim-row-bg:   #f9f9f7;
+
+  --text:         #1a1a18;
+  --text-muted:   #6b6b68;
+  --text-dim:     #a0a09c;
+
+  --mono:         "SF Mono", "Cascadia Code", "Fira Mono", Consolas, monospace;
+  --sans:         -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+
+  --pylint-bg:    #dbeafe;  --pylint-fg:  #1d4ed8;
+  --pycode-bg:    #d1fae5;  --pycode-fg:  #065f46;
+  --custom-bg:    #fef3c7;  --custom-fg:  #92400e;
+  --none-bg:      #efefef;  --none-fg:    #9ca3af;
+
+  --principle-bar: #c5c5bf;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family:    var(--sans);
+  font-size:      13.5px;
+  line-height:    1.55;
+  color:          var(--text);
+  background:     var(--bg);
+  padding:        2.5rem 2rem 4rem;
+}
+
+.page-header {
+  max-width: 900px;
+  margin: 0 auto 2.5rem;
+}
+
+.page-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.4rem;
+}
+
+.page-header p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.page-header code {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  background: var(--border);
+  padding: 0.05em 0.3em;
+  border-radius: 3px;
+}
+
+/* ── Principle card ─────────────────────────────────────── */
+
+.principle {
+  max-width: 900px;
+  margin: 0 auto 1.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  border-left: 3px solid var(--principle-bar);
+}
+
+.principle-header {
+  padding: 0.9rem 1.1rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--head-bg);
+}
+
+.principle-header h2 {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.principle-header .statement {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ── Table ──────────────────────────────────────────────── */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+col.col-gid     { width: 52px;  }
+col.col-code    { width: 82px;  }
+col.col-type    { width: 108px; }
+col.col-content { width: auto;  }
+
+thead th {
+  padding: 0.45rem 0.85rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-dim);
+  background: var(--head-bg);
+  border-bottom: 1px solid var(--row-sep);
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+td {
+  padding: 0.7rem 0.85rem;
+  vertical-align: top;
+  border-bottom: 1px solid var(--row-sep);
+}
+
+tr:last-child td { border-bottom: none; }
+
+/* ── Covered rows ───────────────────────────────────────── */
+
+.gid {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.codes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.code-tag {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ── Badges ─────────────────────────────────────────────── */
+
+.badge {
+  display: inline-block;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.badge-pylint     { background: var(--pylint-bg);  color: var(--pylint-fg);  }
+.badge-pycode     { background: var(--pycode-bg);  color: var(--pycode-fg);  }
+.badge-custom     { background: var(--custom-bg);  color: var(--custom-fg);  }
+.badge-none       { background: var(--none-bg);    color: var(--none-fg);    }
+
+/* ── Content cell ───────────────────────────────────────── */
+
+.guideline {
+  font-size: 0.77rem;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
+}
+
+.guideline code, .vmsg code {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  background: #f0f0ec;
+  padding: 0.05em 0.28em;
+  border-radius: 2px;
+}
+
+.vmsg {
+  font-size: 0.8rem;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.vmsg + .vmsg {
+  margin-top: 0.45rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--row-sep);
+}
+
+.vmsg strong {
+  font-family: var(--mono);
+  font-weight: 600;
+  font-size: 0.72rem;
+}
+
+/* ── Legend ─────────────────────────────────────────────── */
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.2rem;
+  margin-top: 0.75rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+/* ── Uncoverable rows ───────────────────────────────────── */
+
+tr.dim td {
+  background: var(--dim-row-bg);
+}
+
+tr.dim .gid,
+tr.dim .code-tag {
+  color: var(--text-dim);
+}
+
+tr.dim .guideline {
+  color: var(--text-dim);
+}
+
+.not-checkable {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-style: italic;
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>CQP Checker Coverage</h1>
+  <p>
+    Guidelines from Kirk, Luxton-Reilly &amp; Tempero,
+    <em>"Distilling PEP 8 for Teaching Introductory Programming"</em>, ACE 2025 (Tables 5 &amp; 6).
+    Violation messages are shown verbatim as displayed to students.
+    Dimmed rows indicate guidelines not statically checkable by the current toolset.
+  </p>
+  <div class="legend">
+    <div class="legend-item"><span class="badge badge-pylint">Pylint</span> 4-digit codes (C0xxx, W0xxx, R0xxx)</div>
+    <div class="legend-item"><span class="badge badge-pycode">pycodestyle</span> 3-digit codes (Exxx, Wxxx)</div>
+    <div class="legend-item"><span class="badge badge-custom">Custom</span> W90xx — project-specific checkers</div>
+    <div class="legend-item"><span class="badge badge-none">None</span> not statically checkable</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 1. CLEAR PRESENTATION                                   -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>1. Clear Presentation</h2>
+    <div class="statement">Different elements are easy to recognise and distinguish and the relationships between them are apparent.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+
+      <tr>
+        <td class="gid">G5</td>
+        <td><div class="codes"><span class="code-tag">C0301</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Limit all lines to a maximum of 79 characters.</div>
+          <div class="vmsg">This line exceeds the recommended length of 79 characters. Long lines force the reader to scroll horizontally and make it harder to see the structure of the code at a glance.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G6</td>
+        <td><div class="codes"><span class="code-tag">W191</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Spaces are the preferred indentation method.</div>
+          <div class="vmsg">This line uses a tab character for indentation. PEP 8 requires spaces — specifically 4 spaces per level. Tabs render differently in different editors, making the code look inconsistent to different readers.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G7</td>
+        <td><div class="codes"><span class="code-tag">W0311</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Use 4 spaces per indentation level.</div>
+          <div class="vmsg">The indentation on this line does not match the expected level. Consistent indentation is how Python signals code structure — incorrect indentation misleads the reader about which block a line belongs to.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G8</td>
+        <td><div class="codes"><span class="code-tag">E502</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Use Python's implied line continuation inside parentheses, brackets and braces in preference to a backslash for line continuation.</div>
+          <div class="vmsg">This backslash for line continuation is unnecessary because the line is already inside brackets. Remove the backslash and let the brackets handle the continuation — it is cleaner and less error-prone.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G9</td>
+        <td><div class="codes"><span class="code-tag">E121</span><span class="code-tag">E122</span><span class="code-tag">E125</span><span class="code-tag">E126</span><span class="code-tag">E127</span><span class="code-tag">E128</span><span class="code-tag">E129</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Continuation lines should align wrapped elements vertically or use a hanging indent with no arguments on the first line.</div>
+          <div class="vmsg"><strong>E121:</strong> This continuation line is under-indented. Continuation lines should be indented further than the opening line to make it clear they are part of the same expression.</div>
+          <div class="vmsg"><strong>E122:</strong> This continuation line is missing indentation. Align it with the opening delimiter or use a hanging indent so it is visually distinct from the next statement.</div>
+          <div class="vmsg"><strong>E125:</strong> This continuation line has the same indentation as the next logical line. Add extra indentation so the continuation is visually distinct from the block body that follows.</div>
+          <div class="vmsg"><strong>E126:</strong> This continuation line is over-indented for a hanging indent. Over-indentation pushes the line deeper than expected, making it look like the start of a new nested block rather than a continuation of the expression above. Reduce the indentation to align with the expected level.</div>
+          <div class="vmsg"><strong>E127:</strong> This continuation line is over-indented. Extra indentation makes the continuation look like it belongs to a deeper block, misleading the reader about where the current expression ends. Align it with the opening delimiter.</div>
+          <div class="vmsg"><strong>E128:</strong> This continuation line is under-indented. Without enough indentation, the continuation looks like a new statement rather than part of the expression above, misleading the reader about where the expression ends. Align it with the opening delimiter.</div>
+          <div class="vmsg"><strong>E129:</strong> This visually indented continuation line has the same indentation as the next logical line. Add extra indentation to distinguish the continuation from the block body.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G10</td>
+        <td><div class="codes"><span class="code-tag">E123</span><span class="code-tag">E124</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">The closing brace/bracket/parenthesis may line up under the first non-whitespace character of the last item, or under the first character of the line that starts the multiline construct.</div>
+          <div class="vmsg"><strong>E123:</strong> The closing bracket does not match the indentation of the opening line. Consistent bracket placement makes it easy to find the end of a multiline construct at a glance — without it, the reader must scan the content rather than the structure to know where the expression ends. It should line up under the first non-whitespace character of the last item, or under the start of the line that begins the multiline construct.</div>
+          <div class="vmsg"><strong>E124:</strong> The closing bracket does not match the visual indentation of the opening delimiter. A misaligned closing bracket makes it harder to find where the multiline expression ends — the reader cannot scan the left edge to find the matching bracket. Align the closing bracket with the opener.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G11<br>G12</td>
+        <td><div class="codes"><span class="code-tag">W9001</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">The <code>"""</code> ending a multiline docstring should be on a line by itself. For one-liner docstrings, keep the closing <code>"""</code> on the same line.</div>
+          <div class="vmsg">The closing <code>"""</code> of this docstring is in the wrong position. Consistent docstring layout signals at a glance whether a docstring spans one line or many — a reader should not have to read the content to find out. For a one-line docstring, everything — opening quotes, text, and closing quotes — should be on a single line. For a multiline docstring, the closing <code>"""</code> should be on a line of its own, making it easy to see where the docstring ends.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G18</td>
+        <td><div class="codes"><span class="code-tag">W9007</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">Block comments apply to the code that follows them, and are indented to the same level as that code.</div>
+          <div class="vmsg">This block comment is not indented to the same level as the code it applies to. A block comment should be indented to match the indentation of the code that follows it, so the structure of the code is visually clear.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G19</td>
+        <td><div class="codes"><span class="code-tag">E265</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Each line of a block comment starts with a <code>#</code> and a single space.</div>
+          <div class="vmsg">This block comment does not start with <code># </code> (hash followed by a space). Block comments should use this format — the space separates the marker from the text and is a widely expected convention.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G20</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Paragraphs inside a block comment are separated by a line containing a single <code>#</code>.</div>
+          <div class="not-checkable">Not statically checkable — requires understanding of paragraph intent within a comment.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G21</td>
+        <td><div class="codes"><span class="code-tag">E262</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Inline comments should start with a <code>#</code> and a single space.</div>
+          <div class="vmsg">This inline comment does not start with <code># </code> (hash followed by a space). All comments should use this format so they are immediately recognisable as comments.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G22</td>
+        <td><div class="codes"><span class="code-tag">E261</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Inline comments should be separated by at least two spaces from the statement.</div>
+          <div class="vmsg">There is less than two spaces before this inline comment. Inline comments should be separated from the statement by at least two spaces so they are visually distinct from the code.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G30<br>G35</td>
+        <td><div class="codes"><span class="code-tag">W9004</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">It is permissible to break before or after a binary operator, but the convention must be consistent throughout the file.</div>
+          <div class="vmsg">This file breaks long expressions both before and after binary operators in different places. Pick one style — either always place the operator at the end of the line or always at the start of the continuation — and apply it consistently throughout the file.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G31</td>
+        <td><div class="codes"><span class="code-tag">E225</span><span class="code-tag">E221</span><span class="code-tag">E222</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Always surround binary operators with a single space on either side. Never use more than one space, and always have the same amount on both sides.</div>
+          <div class="vmsg"><strong>E225:</strong> There is no space around this operator. Surrounding operators with a single space on each side makes expressions easier to read, for example: <code>x = a + b</code> not <code>x=a+b</code>.</div>
+          <div class="vmsg"><strong>E221:</strong> There are multiple spaces before this operator. Multiple spaces suggest intentional column alignment, implying a deliberate pattern — but when only this operator is padded, the reader will look for a pattern that is not there. Use a single space on each side of all operators.</div>
+          <div class="vmsg"><strong>E222:</strong> There are multiple spaces after this operator. Extra whitespace after an operator creates uneven visual rhythm that slows reading and looks unintentional. Use a single space on each side of an operator.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G32</td>
+        <td><div class="codes"><span class="code-tag">C0321</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Compound statements (multiple statements on the same line) are generally discouraged.</div>
+          <div class="vmsg">Multiple statements appear on one line. Placing each statement on its own line makes the structure of the code easier to follow.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G36</td>
+        <td><div class="codes"><span class="code-tag">E201</span><span class="code-tag">E202</span><span class="code-tag">E203</span><span class="code-tag">E211</span><span class="code-tag">E231</span><span class="code-tag">E241</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Avoid extraneous whitespace immediately inside brackets, before a comma/semicolon/colon, or between a name and an opening bracket.</div>
+          <div class="vmsg"><strong>E201:</strong> There is a space immediately after an opening bracket. Extra whitespace inside brackets creates visual noise that draws the eye without adding information — it makes it harder to see where the bracket's content begins. Brackets should sit flush against their contents, for example: <code>my_list[0]</code> not <code>my_list[ 0 ]</code>.</div>
+          <div class="vmsg"><strong>E202:</strong> There is a space immediately before a closing bracket. Extra whitespace inside brackets creates visual noise and makes it harder to see where the bracket's content ends. Brackets should sit flush against their contents, for example: <code>my_list[0]</code> not <code>my_list[ 0 ]</code>.</div>
+          <div class="vmsg"><strong>E203:</strong> There is a space before a comma, semicolon, or colon. Punctuation attaches to what comes before it, so a space in front makes the preceding token look detached from the punctuation that belongs to it. Write <code>(a, b)</code> not <code>(a , b)</code>.</div>
+          <div class="vmsg"><strong>E211:</strong> There is a space between this name and the opening bracket. Without the space, the bracket signals to the reader that the name is being called or indexed. Adding a space breaks that visual connection and makes the call or index look like a separate element. Write <code>my_func()</code> not <code>my_func ()</code>.</div>
+          <div class="vmsg"><strong>E231:</strong> There is no space after this comma, semicolon, or colon. A space after a separator helps the reader distinguish the separate items, for example: <code>(a, b, c)</code> not <code>(a,b,c)</code>.</div>
+          <div class="vmsg"><strong>E241:</strong> There are multiple spaces after this separator. A single space after a separator is the expected visual pattern — multiple spaces suggest intentional column alignment, but when that alignment does not continue consistently, it just looks like a typo. Use a single space after commas, colons, and semicolons.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G38</td>
+        <td><div class="codes"><span class="code-tag">E302</span><span class="code-tag">E305</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Surround top-level function definitions with two blank lines.</div>
+          <div class="vmsg"><strong>E302:</strong> There should be two blank lines before this top-level function definition. The extra whitespace visually separates major sections of the file and makes the structure clear at a glance.</div>
+          <div class="vmsg"><strong>E305:</strong> There should be two blank lines after the last top-level function definition before module-level code. This separation makes it clear where the definitions end and the main code begins.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G39</td>
+        <td><div class="codes"><span class="code-tag">E303</span><span class="code-tag">E306</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Use blank lines in functions, sparingly, to indicate logical sections.</div>
+          <div class="vmsg"><strong>E303:</strong> There are too many consecutive blank lines here. Use one blank line to separate logical sections within a function, and two blank lines between top-level definitions. More than that adds unnecessary space.</div>
+          <div class="vmsg"><strong>E306:</strong> There should be one blank line before this nested function definition. The blank line makes it visually distinct from the surrounding code.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G42</td>
+        <td><div class="codes"><span class="code-tag">E251</span><span class="code-tag">E252</span></div></td>
+        <td><span class="badge badge-pycode">pycodestyle</span></td>
+        <td>
+          <div class="guideline">Don't use spaces around the <code>=</code> sign for keyword arguments or unannotated default values; do use spaces for annotated defaults.</div>
+          <div class="vmsg"><strong>E251:</strong> There are spaces around the <code>=</code> in a keyword argument or default value. In a regular assignment, spaces around <code>=</code> are expected — so adding them here makes keyword arguments look like assignment statements, blurring the distinction between the two. Write <code>def f(x=1)</code> and <code>f(x=1)</code>, not <code>def f(x = 1)</code> and <code>f(x = 1)</code>.</div>
+          <div class="vmsg"><strong>E252:</strong> There is no space around the <code>=</code> for an annotated parameter default. When a type annotation is present, the <code>=</code> sits between the annotation and the default value — without spaces, the three elements run together and become harder to distinguish from one another. Write <code>def f(x: int = 1)</code> not <code>def f(x: int=1)</code>.</div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 2. EXPLANATORY LANGUAGE                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>2. Explanatory Language</h2>
+    <div class="statement">The rationale, intent and meaning of code is explicit.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+
+      <tr class="dim">
+        <td class="gid">G1<br>G2</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Recognise which naming style you are using. (Awareness guideline listing naming conventions.)</div>
+          <div class="not-checkable">Not statically checkable — requires understanding of intentional style choice.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G3</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Use names that describe the information you are storing.</div>
+          <div class="not-checkable">Not statically checkable — requires semantic understanding of variable purpose.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G4</td>
+        <td><div class="codes"><span class="code-tag">W9006</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">Never use <code>l</code> (lowercase el), <code>O</code> (uppercase oh), or <code>I</code> (uppercase eye) as single-character variable names.</div>
+          <div class="vmsg">The names <code>l</code> (lowercase el), <code>O</code> (uppercase oh), and <code>I</code> (uppercase eye) are easily confused with the digits 1, 0, and 1 respectively. Choose a more distinctive name that cannot be misread at a glance.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G13</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Comments that contradict the code are worse than no comments. Keep comments up-to-date when code changes.</div>
+          <div class="not-checkable">Not statically checkable — requires semantic comparison of comment intent with code behaviour.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G14</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Comments should be complete sentences with the first word capitalised (unless it is a lower-case identifier).</div>
+          <div class="not-checkable">Not statically checkable — requires natural language parsing.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G15</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Ensure comments are clear and easily understandable to other speakers of the language.</div>
+          <div class="not-checkable">Not statically checkable — requires natural language understanding.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G16</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Block comments consist of one or more paragraphs of complete sentences, each ending in a period.</div>
+          <div class="not-checkable">Not statically checkable — requires natural language parsing.</div>
+        </td>
+      </tr>
+
+      <tr class="dim">
+        <td class="gid">G17</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">An inline comment is a comment on the same line as a statement. Use inline comments sparingly.</div>
+          <div class="not-checkable">Not statically checkable — frequency judgement requires context.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G24<br>G25<br>G26<br>G37</td>
+        <td><div class="codes"><span class="code-tag">C0103</span><span class="code-tag">C0104</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Variable, global, and function names should be <code>lowercase_with_underscores</code>. Constants should be <code>ALL_CAPS_WITH_UNDERSCORES</code>. Avoid placeholder names (e.g. <code>foo</code>, <code>bar</code>).</div>
+          <div class="vmsg"><strong>C0103:</strong> This name doesn't follow the expected naming convention. Names should communicate the purpose of a variable or function so a reader doesn't have to trace through the code to understand it. Use <code>lowercase_with_underscores</code> for variables and functions, and <code>ALL_CAPS_WITH_UNDERSCORES</code> for constants.</div>
+          <div class="vmsg"><strong>C0104:</strong> This name (e.g. <code>foo</code>, <code>bar</code>, <code>x</code>) is a placeholder that carries no meaning. Choose a name that describes what the element represents or stores.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G41</td>
+        <td><div class="codes"><span class="code-tag">W0622</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">If a function argument's name clashes with a built-in, replace it with a more specific name.</div>
+          <div class="vmsg">This name shadows a Python built-in such as <code>list</code>, <code>id</code>, or <code>type</code>. Using a built-in name as a variable or parameter hides the original meaning and can cause confusing errors elsewhere in the code. Choose a more specific name that describes what the value actually represents.</div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 3. CONSISTENT CODE                                      -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>3. Consistent Code</h2>
+    <div class="statement">Elements that are similar in nature are presented and used in a similar way.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+
+      <tr class="dim">
+        <td class="gid">G23</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td>
+          <div class="guideline">Comments for non-public methods should appear after the <code>def</code> line.</div>
+          <div class="not-checkable">Not currently covered — would require a custom checker to detect block comments placed before non-public method definitions.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G29</td>
+        <td><div class="codes"><span class="code-tag">W9003</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">Single-quoted and double-quoted strings are equivalent. Pick one style and stick to it.</div>
+          <div class="vmsg">This file uses both single-quoted and double-quoted strings without a clear reason. When both styles appear together, a reader will look for a pattern — trying to work out whether the choice means something — and find there is none. Pick one quote style and use it consistently throughout the file. The only exception is when a string contains the quote character itself — use the other style then to avoid backslash escapes.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G35</td>
+        <td><div class="codes"><span class="code-tag">W9004</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">It is ok to break before or after a binary operator as long as the convention is consistent locally. (See also G30 in Clear Presentation.)</div>
+          <div class="vmsg">This file breaks long expressions both before and after binary operators in different places. A consistent style lets a reader know where to look for operators — either reliably at the end of each line or reliably at the start of the next. When the style varies, the reader cannot scan predictably and must re-read lines to find where each expression continues. Pick one style and apply it throughout the file.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G40</td>
+        <td><div class="codes"><span class="code-tag">R1710</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Be consistent in return statements. Either all return statements should return an expression, or none should. Where nothing is returned, write <code>return None</code> explicitly.</div>
+          <div class="vmsg">Some return statements in this function return a value and others return nothing. Either all return statements should return an expression, or none should. Where nothing is returned, write <code>return None</code> explicitly to make the function's behaviour consistent and clear.</div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 4. USED CONTENT                                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>4. Used Content</h2>
+    <div class="statement">All elements that are introduced are meaningfully used.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+      <tr class="dim">
+        <td class="gid">—</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td><div class="not-checkable">No CS1-level PEP 8 guidelines map to this principle.</div></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 5. SIMPLE CONSTRUCTS                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>5. Simple Constructs</h2>
+    <div class="statement">Coding constructs are selected to minimise complexity for the intended reader.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+
+      <tr>
+        <td class="gid">G28</td>
+        <td><div class="codes"><span class="code-tag">W9002</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">When a string contains single or double quote characters, use the other one to avoid backslashes in the string.</div>
+          <div class="vmsg">This string uses a backslash to escape a quote character, but switching to the other quote style would eliminate the escape entirely. For example, <code>'it\'s here'</code> is clearer as <code>"it's here"</code>. Avoiding unnecessary backslashes makes strings easier to read.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G33</td>
+        <td><div class="codes"><span class="code-tag">C0113</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">Use the <code>is not</code> operator rather than <code>not ... is</code>.</div>
+          <div class="vmsg">This condition uses <code>not ... is</code> instead of <code>is not</code>. The <code>is not</code> form is the simpler, more direct way to express this comparison and is easier to read correctly at a glance.</div>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="gid">G34</td>
+        <td><div class="codes"><span class="code-tag">C0121</span></div></td>
+        <td><span class="badge badge-pylint">Pylint</span></td>
+        <td>
+          <div class="guideline">When comparing boolean values, don't include the <code>== value</code>. This is unnecessary.</div>
+          <div class="vmsg">This comparison against True, False, or None is more complex than necessary. Instead of <code>if x == True</code>, write <code>if x</code>; instead of <code>if x == False</code>, write <code>if not x</code>; instead of <code>if x == None</code>, write <code>if x is None</code>. The simpler form is easier to read and is the Python idiom.</div>
+        </td>
+      </tr>
+
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 6. MINIMAL DUPLICATION                                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>6. Minimal Duplication</h2>
+    <div class="statement">Code repetition is avoided.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+      <tr class="dim">
+        <td class="gid">—</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td><div class="not-checkable">No CS1-level PEP 8 guidelines map to this principle.</div></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 7. MODULAR STRUCTURE                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>7. Modular Structure</h2>
+    <div class="statement">Related code is grouped together and dependencies between groups minimised.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+      <tr>
+        <td class="gid">G27</td>
+        <td><div class="codes"><span class="code-tag">W9005</span></div></td>
+        <td><span class="badge badge-custom">Custom</span></td>
+        <td>
+          <div class="guideline">Constants are usually defined on a module level.</div>
+          <div class="vmsg">This name uses <code>ALL_CAPS_WITH_UNDERSCORES</code>, which signals a constant, but it is defined inside a function rather than at module level. Constants are usually defined at the top of the file so they are easy to find and can be shared across functions.</div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- 8. PROBLEM ALIGNMENT                                    -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<section class="principle">
+  <div class="principle-header">
+    <h2>8. Problem Alignment</h2>
+    <div class="statement">Implementation choices are consistent with the problem to be solved.</div>
+  </div>
+  <table>
+    <colgroup>
+      <col class="col-gid"><col class="col-code"><col class="col-type"><col class="col-content">
+    </colgroup>
+    <thead><tr>
+      <th>G#</th><th>Code</th><th>Checker</th><th>Guideline &amp; Violation Message</th>
+    </tr></thead>
+    <tbody>
+      <tr class="dim">
+        <td class="gid">—</td>
+        <td><div class="codes"><span class="code-tag">—</span></div></td>
+        <td><span class="badge badge-none">None</span></td>
+        <td><div class="not-checkable">No CS1-level PEP 8 guidelines map to this principle. PEP 8's Appropriate Implementation items were removed as out of scope for CS1.</div></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+</body>
+</html>

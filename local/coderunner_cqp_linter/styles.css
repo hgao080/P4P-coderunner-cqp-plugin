@@ -322,3 +322,10 @@ details[open] > .pylint-header {
 .cqp-results-container {
     margin-top: 0.25rem;
 }
+
+/* Ace gutter tooltip — enable word-wrap for CQP annotation text */
+.ace_tooltip {
+    white-space: pre-wrap !important;
+    max-width: 320px !important;
+    word-break: break-word !important;
+}

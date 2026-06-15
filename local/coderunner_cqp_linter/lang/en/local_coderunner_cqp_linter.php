@@ -130,3 +130,11 @@ $string['configure_linting'] = 'Configure linting';
 $string['enable_linting'] = 'Enable linting';
 $string['manage_state_enabled'] = 'Linting is currently enabled for this question. Students will see a "Check Code Quality" button when answering it.';
 $string['manage_state_disabled'] = 'Linting is not yet enabled for this question. Students will not see any linting UI until you enable it.';
+
+// Style check marks mode.
+$string['manage_marks_header'] = 'Style check marks';
+$string['manage_marks_enabled'] = 'Enable style check marks';
+$string['manage_marks_enabled_label'] = 'Inject a style check test case that awards marks if code has no violations';
+$string['manage_marks_enabled_help'] = 'When enabled, a hidden test case is added to this question that runs the CQP style checker on the student\'s submitted code. If the code has no style violations at or above the configured minimum severity, the student earns the allocated marks. <strong>Warning:</strong> enabling this sets the question to partial-credit mode (all-or-nothing grading is disabled), which affects all test cases in the question.';
+$string['manage_marks_weight'] = 'Style check mark weight';
+$string['manage_marks_weight_desc'] = 'Relative mark weight for the style check test case. If your normal test cases each have weight 1.0, setting this to 1.0 means style counts for 1/(N+1) of the total grade.';
