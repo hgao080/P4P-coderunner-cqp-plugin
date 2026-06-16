@@ -219,6 +219,23 @@ try:
     pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
 
     student_code = sys.stdin.read()
+
+    # Precheck: pylint cannot analyse code that has syntax errors and will
+    # silently report zero CQP issues.  Catch this before running pylint so
+    # the student sees an honest "fix your syntax first" message rather than
+    # the misleading "No issues found. Well done!".
+    try:
+        compile(student_code, '<student>', 'exec')
+    except SyntaxError as _e:
+        print(json.dumps({
+            'success': False,
+            'error': 'Syntax error at line {}: {}. Fix syntax errors before checking code quality.'.format(
+                _e.lineno or 0, _e.msg
+            ),
+            'total_issues': 0, 'messages': [], 'principles': [],
+        }))
+        sys.exit(0)
+
     all_messages = []
 
     if pylint_codes:
@@ -244,7 +261,10 @@ try:
                 ], exit=False)
             finally:
                 sys.stdout = _real_stdout
-            result = json.loads(_captured.getvalue() or '{}')
+            _pylint_out = _captured.getvalue().strip()
+            if not _pylint_out:
+                raise RuntimeError('pylint produced no output — it may have crashed or failed to start')
+            result = json.loads(_pylint_out)
             for msg in result.get('messages', []):
                 code = msg.get('messageId') or msg.get('message-id', '')
                 if code in code_map:
