@@ -33,6 +33,7 @@
         <FIELD NAME="slot" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Question slot number in the quiz"/>
         <FIELD NAME="issuecount" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Total CQP issues found by client-side analyser"/>
         <FIELD NAME="resultsjson" TYPE="text" NOTNULL="false" COMMENT="JSON: which CQP principles were violated and how many times"/>
+        <FIELD NAME="eventtype" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="button" COMMENT="What triggered this row: button (student clicked Check Code Quality) or submit (quiz attempt submitted)"/>
         <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0"/>
       </FIELDS>
       <KEYS>

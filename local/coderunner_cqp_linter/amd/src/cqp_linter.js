@@ -5,6 +5,15 @@
  * sandbox for pylint/pycodestyle/custom analysis, then renders violations
  * inline in the Ace editor and in a results panel below the answer box.
  *
+ * Also records lint events when students interact with CodeRunner's own
+ * Check and Precheck buttons, capturing the last known lint state at that
+ * moment so the researcher can correlate code-quality awareness with testing
+ * behaviour across the three button types:
+ *   cqp      – student clicked our "Check Code Quality" button
+ *   check    – student clicked CodeRunner's "Check" (test-run) button
+ *   precheck – student clicked CodeRunner's "Precheck" button
+ *   submit   – quiz submitted (written server-side by the observer)
+ *
  * @module     local_coderunner_cqp_linter/cqp_linter
  * @copyright  2026 Your Name
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -266,6 +275,9 @@ define(['core/ajax'], function(Ajax) {
                 return el;
             }
         }
+        // Fallback for qbank preview pages where only one question is on the page.
+        var all = document.querySelectorAll('.que.coderunner');
+        if (all.length === 1) { return all[0]; }
         return null;
     }
 
@@ -310,21 +322,30 @@ define(['core/ajax'], function(Ajax) {
     }
 
     /**
-     * Fire-and-forget: log a lint button click to the server for research.
+     * Build a lint event summary from principles for the DB JSON column.
      *
-     * @param {Object} slotInfo {slot, questionid} from the PHP init config.
-     * @param {number} issuecount Total issues found.
-     * @param {Array}  principles Principle summary from the lint response.
+     * @param {Array} principles Array with {number, count} or {n, count} objects.
+     * @return {Object} Summary object {principles: [{n, count}]}.
      */
-    function recordLintEvent(slotInfo, issuecount, principles) {
-        var urlParams = new URLSearchParams(window.location.search);
-        var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
-
-        var summary = {
+    function buildSummary(principles) {
+        return {
             principles: principles.map(function(p) {
-                return {n: p.number, count: p.count};
+                return {n: p.number !== undefined ? p.number : p.n, count: p.count};
             })
         };
+    }
+
+    /**
+     * Record a lint event via Moodle AJAX (stays on page — for the CQP button).
+     *
+     * @param {Object} slotInfo   {slot, questionid}
+     * @param {number} issuecount Total issues found.
+     * @param {Array}  principles Principle objects with number/count.
+     * @param {string} eventtype  'cqp'
+     */
+    function recordLintEvent(slotInfo, issuecount, principles, eventtype) {
+        var urlParams = new URLSearchParams(window.location.search);
+        var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
 
         Ajax.call([{
             methodname: 'local_coderunner_cqp_linter_record_lint_event',
@@ -333,11 +354,96 @@ define(['core/ajax'], function(Ajax) {
                 attemptid:   attemptId,
                 slot:        slotInfo.slot,
                 issuecount:  issuecount,
-                resultsjson: JSON.stringify(summary)
+                resultsjson: JSON.stringify(buildSummary(principles)),
+                eventtype:   eventtype || 'cqp'
             }
         }])[0].catch(function() {
             // Logging failure is non-fatal — never disrupt the student.
         });
+    }
+
+    /**
+     * Record a lint event using fetch+keepalive so it survives page navigation.
+     *
+     * Used for CodeRunner's Check and Precheck buttons which cause a full page
+     * reload. The keepalive flag tells the browser to send the request even if
+     * the page is navigating away.
+     *
+     * @param {Object} slotInfo   {slot, questionid}
+     * @param {number} issuecount Total issues from the last CQP check (0 if none yet).
+     * @param {Array}  principles Principle objects from the last CQP check.
+     * @param {string} eventtype  'check' or 'precheck'
+     */
+    function recordLintEventKeepalive(slotInfo, issuecount, principles, eventtype) {
+        var urlParams = new URLSearchParams(window.location.search);
+        var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
+
+        var cfg = (window.M && window.M.cfg) ? window.M.cfg : {};
+        var sesskey = cfg.sesskey || '';
+        var wwwroot  = cfg.wwwroot || '';
+
+        var body = JSON.stringify([{
+            index: 0,
+            methodname: 'local_coderunner_cqp_linter_record_lint_event',
+            args: {
+                questionid:  slotInfo.questionid,
+                attemptid:   attemptId,
+                slot:        slotInfo.slot,
+                issuecount:  issuecount,
+                resultsjson: JSON.stringify(buildSummary(principles)),
+                eventtype:   eventtype
+            }
+        }]);
+
+        try {
+            fetch(wwwroot + '/lib/ajax/service.php?sesskey=' + encodeURIComponent(sesskey), {
+                method:    'POST',
+                headers:   {'Content-Type': 'application/json'},
+                body:      body,
+                keepalive: true
+            });
+        } catch (e) {
+            // Non-fatal: research logging must never impact the student's flow.
+        }
+    }
+
+    /**
+     * Attach click listeners to CodeRunner's own Check and Precheck buttons.
+     *
+     * When either is clicked we fire a keepalive lint event (it survives the
+     * ensuing page reload) carrying the last known lint state so researchers
+     * can see the CQP violations the student had at the moment they ran tests.
+     *
+     * Buttons are identified by the Moodle question-field naming convention:
+     *   Check    → name ends with "-submit"
+     *   Precheck → name ends with "-precheck"
+     *
+     * @param {HTMLElement} questionDiv  The .que.coderunner container.
+     * @param {Object}      slotInfo     {slot, questionid}
+     * @param {Function}    getLastResult Returns {issuecount, principles} from last CQP check.
+     */
+    function attachCoderunnerListeners(questionDiv, slotInfo, getLastResult) {
+        var checkSel    = 'input[type="submit"][name$="-submit"], button[type="submit"][name$="-submit"]';
+        var precheckSel = 'input[type="submit"][name$="-precheck"], button[type="submit"][name$="-precheck"]';
+
+        var checkBtn    = questionDiv.querySelector(checkSel);
+        var precheckBtn = questionDiv.querySelector(precheckSel);
+
+        if (checkBtn && !checkBtn.dataset.cqpListened) {
+            checkBtn.dataset.cqpListened = '1';
+            checkBtn.addEventListener('click', function() {
+                var r = getLastResult();
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, 'check');
+            });
+        }
+
+        if (precheckBtn && !precheckBtn.dataset.cqpListened) {
+            precheckBtn.dataset.cqpListened = '1';
+            precheckBtn.addEventListener('click', function() {
+                var r = getLastResult();
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, 'precheck');
+            });
+        }
     }
 
     /**
@@ -364,6 +470,10 @@ define(['core/ajax'], function(Ajax) {
 
         var currentState = null;
 
+        // Tracks the most recent lint result so Check/Precheck listeners can
+        // include it in their keepalive event even after a page reload.
+        var lastLintResult = {issuecount: 0, principles: []};
+
         btn.addEventListener('click', function() {
             var code = getCode(questionDiv);
             if (!code || !code.trim()) {
@@ -373,7 +483,7 @@ define(['core/ajax'], function(Ajax) {
                 return;
             }
 
-            // Disable button during request (V7).
+            // Disable button during request.
             btn.disabled = true;
             btn.textContent = 'Checking…';
 
@@ -414,7 +524,10 @@ define(['core/ajax'], function(Ajax) {
                 resultsDiv.innerHTML = buildResultsPanel(data);
                 resultsDiv.style.display = '';
 
-                recordLintEvent(slotInfo, data.total_issues, data.principles);
+                // Update the cached result so Check/Precheck listeners can use it.
+                lastLintResult = {issuecount: data.total_issues, principles: data.principles};
+
+                recordLintEvent(slotInfo, data.total_issues, data.principles, 'cqp');
 
                 btn.disabled = false;
                 btn.textContent = 'Check Code Quality';
@@ -430,6 +543,9 @@ define(['core/ajax'], function(Ajax) {
 
         wrapper.appendChild(btn);
         wrapper.appendChild(resultsDiv);
+
+        // Attach keepalive listeners to CodeRunner's own Check/Precheck buttons.
+        attachCoderunnerListeners(questionDiv, slotInfo, function() { return lastLintResult; });
     }
 
     return {

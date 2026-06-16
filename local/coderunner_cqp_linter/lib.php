@@ -46,15 +46,22 @@ function local_coderunner_cqp_linter_before_footer() {
     local_coderunner_cqp_linter_inject_edit_page_link();
 
     $pagetype = $PAGE->pagetype;
+    $script   = $_SERVER['SCRIPT_NAME'] ?? '';
     $isattempt = strpos($pagetype, 'mod-quiz-attempt') === 0;
     $ispreview = strpos($pagetype, 'mod-quiz-preview') === 0
-              || strpos($pagetype, 'question-preview') === 0;
+              || strpos($pagetype, 'question-preview') === 0
+              || strpos($script, '/previewquestion/') !== false;
     $isreview  = strpos($pagetype, 'mod-quiz-review') === 0;
     if (!$isattempt && !$ispreview && !$isreview) {
         return;
     }
 
-    $quba = local_coderunner_cqp_linter_get_quba();
+    try {
+        $quba = local_coderunner_cqp_linter_get_quba();
+    } catch (\Throwable $e) {
+        debugging('CodeRunner CQP Linter: get_quba error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        return;
+    }
     if ($quba === null) {
         return;
     }
@@ -334,6 +341,31 @@ function local_coderunner_cqp_linter_get_quba(): ?\question_usage_by_activity {
             debugging('CodeRunner CQP Linter: Failed to load preview question usage: ' . $e->getMessage(), DEBUG_DEVELOPER);
             return null;
         }
+    }
+
+    // qbank preview page: URL never has previewid — find the most recent preview
+    // session for the current user in question_previews.
+    $script = $_SERVER['SCRIPT_NAME'] ?? '';
+    if (strpos($script, '/previewquestion/') !== false) {
+        global $USER;
+        if (!$DB->get_manager()->table_exists('question_previews')) {
+            return null;
+        }
+        try {
+            $rows = $DB->get_records_sql(
+                'SELECT qp.qubaid FROM {question_previews} qp
+                  WHERE qp.userid = :userid
+                  ORDER BY qp.id DESC',
+                ['userid' => $USER->id], 0, 1
+            );
+            $row = $rows ? reset($rows) : null;
+            if ($row) {
+                return \question_engine::load_questions_usage_by_activity($row->qubaid);
+            }
+        } catch (\Exception $e) {
+            debugging('CodeRunner CQP Linter: Failed to load qbank preview usage: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+        return null;
     }
 
     return null;

@@ -43,6 +43,7 @@ $sql = "SELECT e.id,
                e.slot,
                e.issuecount,
                e.resultsjson,
+               e.eventtype,
                e.timecreated
           FROM {local_crcqp_lint_event} e
           JOIN {user}     u ON u.id = e.userid
@@ -73,6 +74,7 @@ if ($download === 'csv') {
         'issuecount',
         'principles_violated',   // extracted from JSON for convenience
         'resultsjson',
+        'eventtype',
         'timecreated_unix',
         'timecreated_readable',
     ]);
@@ -98,6 +100,7 @@ if ($download === 'csv') {
             $row->issuecount,
             implode('; ', $principlenumbers),
             $row->resultsjson,
+            $row->eventtype,
             $row->timecreated,
             userdate($row->timecreated, '%Y-%m-%d %H:%M:%S'),
         ]);
@@ -144,6 +147,7 @@ $table->head = [
     get_string('report_col_attempt', 'local_coderunner_cqp_linter'),
     get_string('report_col_issues', 'local_coderunner_cqp_linter'),
     get_string('report_col_principles', 'local_coderunner_cqp_linter'),
+    get_string('report_col_eventtype', 'local_coderunner_cqp_linter'),
     get_string('report_col_time', 'local_coderunner_cqp_linter'),
 ];
 
@@ -166,6 +170,7 @@ foreach ($preview as $row) {
         $row->attemptid > 0 ? $row->attemptid : '—',
         $row->issuecount,
         implode(' ', $badges) ?: '—',
+        s($row->eventtype ?? 'button'),
         userdate($row->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
     ];
 }

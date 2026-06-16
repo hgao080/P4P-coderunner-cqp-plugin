@@ -114,6 +114,7 @@ $string['report_col_question'] = 'Question';
 $string['report_col_attempt'] = 'Attempt ID';
 $string['report_col_issues'] = 'Issues found';
 $string['report_col_principles'] = 'Principles violated';
+$string['report_col_eventtype'] = 'Event type';
 $string['report_col_time'] = 'Time';
 
 // Per-question management form.

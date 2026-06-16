@@ -114,34 +114,46 @@ class observer {
     }
 
     /**
-     * Process a quiz attempt to pre-cache lint results.
+     * Process a quiz attempt to pre-cache lint results and record submission events.
      *
      * @param \mod_quiz\event\attempt_submitted $event
      */
     private static function process_attempt(\mod_quiz\event\attempt_submitted $event): void {
         global $DB;
 
-        // Linting is now opt-in per question — question_helper::lint_question_attempt()
-        // short-circuits on questions without a per-question config row, so we can
-        // safely iterate every slot without a global gate here.
         $attemptid = $event->objectid;
 
-        // Load the quiz attempt.
         $attemptobj = $DB->get_record('quiz_attempts', ['id' => $attemptid]);
         if (!$attemptobj) {
             return;
         }
 
-        // Load the question usage.
         $quba = \question_engine::load_questions_usage_by_activity($attemptobj->uniqueid);
+        $now  = time();
 
-        // Iterate through all question slots.
         foreach ($quba->get_slots() as $slot) {
             $qa = $quba->get_question_attempt($slot);
 
-            // This method handles all checks (is python, is enabled, has code)
-            // and uses the cache internally.
-            question_helper::lint_question_attempt($qa);
+            $result = question_helper::lint_question_attempt($qa);
+            if ($result === null) {
+                continue;
+            }
+
+            $question    = $qa->get_question();
+            $config      = question_helper::get_lint_config($question->id);
+            $minseverity = $config['min_severity'] ?? 'convention';
+
+            $record              = new \stdClass();
+            $record->userid      = (int)$attemptobj->userid;
+            $record->questionid  = (int)$question->id;
+            $record->attemptid   = (int)$attemptid;
+            $record->slot        = (int)$slot;
+            $record->issuecount  = $result->count_filtered($minseverity);
+            $record->resultsjson = question_helper::build_results_json($result, $minseverity);
+            $record->eventtype   = 'submit';
+            $record->timecreated = $now;
+
+            $DB->insert_record('local_crcqp_lint_event', $record);
         }
     }
 }

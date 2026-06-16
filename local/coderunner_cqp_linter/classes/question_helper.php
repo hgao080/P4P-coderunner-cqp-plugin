@@ -213,6 +213,35 @@ class question_helper {
     }
 
     /**
+     * Build the resultsjson string for a lint_event row from a pylint result.
+     *
+     * Produces {"principles":[{"n":1,"count":3},...]}, which matches the format
+     * the JS sends via record_lint_event so both button and submit rows are
+     * queryable the same way in report.php.
+     *
+     * @param \local_coderunner_cqp_linter\tools\pylint\result $result
+     * @param string $minseverity
+     * @return string JSON string.
+     */
+    public static function build_results_json(
+        \local_coderunner_cqp_linter\tools\pylint\result $result,
+        string $minseverity = 'convention'
+    ): string {
+        $counts = [];
+        foreach ($result->get_filtered($minseverity) as $msg) {
+            $principle = cqp_mapper::get_principle($msg);
+            $n = $principle['number'];
+            $counts[$n] = ($counts[$n] ?? 0) + 1;
+        }
+        $principles = [];
+        foreach ($counts as $n => $count) {
+            $principles[] = ['n' => $n, 'count' => $count];
+        }
+        usort($principles, fn($a, $b) => $a['n'] - $b['n']);
+        return json_encode(['principles' => $principles]);
+    }
+
+    /**
      * Run pylint on a question attempt's code, using cache.
      *
      * @param \question_attempt $qa The question attempt.

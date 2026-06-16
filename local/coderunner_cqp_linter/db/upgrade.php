@@ -76,5 +76,16 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026061200, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026061601) {
+        $table = new xmldb_table('local_crcqp_lint_event');
+        $field = new xmldb_field('eventtype', XMLDB_TYPE_CHAR, '10', null, XMLDB_NOTNULL, null, 'button');
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after resultsjson.
+            $field->setPrevious('resultsjson');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026061601, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }

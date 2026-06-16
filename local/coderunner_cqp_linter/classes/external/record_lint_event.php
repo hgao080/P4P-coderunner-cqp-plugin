@@ -33,6 +33,9 @@ require_once($CFG->libdir . '/externallib.php');
  */
 class record_lint_event extends \external_api {
 
+    /** Allowed eventtype values from client JS. 'submit' is server-only. */
+    private const ALLOWED_EVENTTYPES = ['cqp', 'check', 'precheck'];
+
     /**
      * Describe the input parameters.
      */
@@ -43,6 +46,7 @@ class record_lint_event extends \external_api {
             'slot'        => new \external_value(PARAM_INT, 'Question slot in the quiz', VALUE_DEFAULT, 0),
             'issuecount'  => new \external_value(PARAM_INT, 'Total CQP issues found', VALUE_DEFAULT, 0),
             'resultsjson' => new \external_value(PARAM_RAW, 'JSON: principles violated and counts', VALUE_DEFAULT, '{}'),
+            'eventtype'   => new \external_value(PARAM_ALPHA, 'What triggered this: cqp, check, or precheck', VALUE_DEFAULT, 'cqp'),
         ]);
     }
 
@@ -54,6 +58,7 @@ class record_lint_event extends \external_api {
      * @param int    $slot
      * @param int    $issuecount
      * @param string $resultsjson
+     * @param string $eventtype
      * @return bool
      */
     public static function execute(
@@ -61,7 +66,8 @@ class record_lint_event extends \external_api {
         int $attemptid,
         int $slot,
         int $issuecount,
-        string $resultsjson
+        string $resultsjson,
+        string $eventtype = 'cqp'
     ): bool {
         global $DB, $USER;
 
@@ -71,6 +77,7 @@ class record_lint_event extends \external_api {
             'slot'        => $slot,
             'issuecount'  => $issuecount,
             'resultsjson' => $resultsjson,
+            'eventtype'   => $eventtype,
         ]);
 
         // Validate context — require the user to be logged in (not a guest).
@@ -109,6 +116,8 @@ class record_lint_event extends \external_api {
         $record->slot        = $params['slot'];
         $record->issuecount  = max(0, $params['issuecount']);
         $record->resultsjson = $safejson;
+        $record->eventtype   = in_array($params['eventtype'], self::ALLOWED_EVENTTYPES, true)
+                               ? $params['eventtype'] : 'cqp';
         $record->timecreated = time();
 
         $DB->insert_record('local_crcqp_lint_event', $record);
