@@ -107,6 +107,34 @@ def check_style(source, disabled_str='import-error', min_severity='convention'):
             except ImportError:
                 pass
 
+        pycs_codes = [c for c in code_map if c in PYCODESTYLE_CODES]
+        if pycs_codes:
+            try:
+                import pycodestyle as _pycodestyle
+                _pycs_hits = []
+                class _PCSCollector(_pycodestyle.BaseReport):
+                    def error(self, line_number, offset, text, check):
+                        _pycs_hits.append(text[:4])
+                        return super().error(line_number, offset, text, check)
+                with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as _f:
+                    _f.write(source)
+                    _tmppath = _f.name
+                _saved = sys.stdout
+                sys.stdout = io.StringIO()
+                try:
+                    _pycodestyle.StyleGuide(select=pycs_codes, ignore=(), reporter=_PCSCollector).check_files([_tmppath])
+                finally:
+                    sys.stdout = _saved
+                    try:
+                        os.unlink(_tmppath)
+                    except OSError:
+                        pass
+                for _code in _pycs_hits:
+                    if _code in code_map:
+                        violations += 1
+            except ImportError:
+                pass
+
         if violations == 0:
             return 'Style OK'
         return f'Style issues found: {violations} violation(s)'
