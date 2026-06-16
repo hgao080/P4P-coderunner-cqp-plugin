@@ -286,6 +286,43 @@ try:
             except OSError:
                 pass
 
+    pycs_codes = [c for c in code_map if c in PYCODESTYLE_CODES]
+    if pycs_codes:
+        import pycodestyle as _pycodestyle
+        _pycs_items = []
+        class _PCSCollector(_pycodestyle.BaseReport):
+            def error(self, line_number, offset, text, check):
+                _code = text[:4]
+                _pycs_items.append((line_number, _code))
+                return super().error(line_number, offset, text, check)
+        with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as _f:
+            _f.write(student_code)
+            _tmppath = _f.name
+        _saved = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            _pycodestyle.StyleGuide(select=pycs_codes, ignore=(), reporter=_PCSCollector).check_files([_tmppath])
+        finally:
+            sys.stdout = _saved
+            try:
+                os.unlink(_tmppath)
+            except OSError:
+                pass
+        for _lineno, _code in _pycs_items:
+            if _code in code_map:
+                _info = code_map[_code]
+                _num = PRINCIPLE_NUMBERS.get(_info['key'], 0)
+                _pdata = PRINCIPLES[_info['key']]
+                all_messages.append({
+                    'line':          _lineno,
+                    'type':          'convention',
+                    'symbol':        _info['sym'],
+                    'message':       _info['expl'],
+                    'cqp_number':    _num,
+                    'cqp_name':      _pdata['name'],
+                    'cqp_guideline': _pdata['rationale'],
+                })
+
     custom_codes = [c for c in code_map if c in CUSTOM_CODES]
     if custom_codes:
         from cqp_custom_checkers import run_custom_checks
@@ -430,6 +467,33 @@ try:
         sys.stdout = _real_stdout
 
     result = json.loads(_captured.getvalue() or '{"messages": [], "statistics": {}}')
+
+    pycs_codes = [c for c in code_map if c in PYCODESTYLE_CODES]
+    if pycs_codes:
+        import pycodestyle as _pycodestyle
+        _pycs_items = []
+        class _PCSCollector(_pycodestyle.BaseReport):
+            def error(self, line_number, offset, text, check):
+                _code = text[:4]
+                _pycs_items.append((line_number, offset, _code))
+                return super().error(line_number, offset, text, check)
+        _saved = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            _pycodestyle.StyleGuide(select=pycs_codes, ignore=(), reporter=_PCSCollector).check_files([path])
+        finally:
+            sys.stdout = _saved
+        for _lineno, _col, _code in _pycs_items:
+            if _code in code_map:
+                _info = code_map[_code]
+                result.setdefault('messages', []).append({
+                    'type':       'convention',
+                    'symbol':     _info['sym'],
+                    'message-id': _code,
+                    'message':    _info['expl'],
+                    'line':       _lineno,
+                    'column':     _col,
+                })
 
     custom_codes = [c for c in code_map if c in CUSTOM_CODES]
     if custom_codes:
