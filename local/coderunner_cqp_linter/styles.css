@@ -33,10 +33,6 @@ details[open] > .pylint-header {
     flex-grow: 1;
 }
 
-.pylint-score {
-    font-size: 0.85em;
-}
-
 .pylint-count {
     font-size: 0.85em;
 }
@@ -218,17 +214,6 @@ details[open] > .pylint-header {
     flex-grow: 1;
 }
 
-.cqp-score {
-    font-weight: 600;
-    padding: 0.15rem 0.5rem;
-    border-radius: 0.25rem;
-    font-size: 0.9em;
-}
-
-.cqp-score-good { background-color: #d4edda; color: #155724; }
-.cqp-score-ok   { background-color: #fff3cd; color: #856404; }
-.cqp-score-bad  { background-color: #f8d7da; color: #721c24; }
-
 .cqp-issue-count {
     font-size: 0.85em;
     color: #6c757d;
@@ -256,7 +241,12 @@ details[open] > .pylint-header {
     border-radius: 0.25rem;
     font-size: 0.8em;
     font-weight: 500;
-    cursor: default;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.cqp-principle-badge.cqp-badge-dimmed {
+    opacity: 0.35;
 }
 
 .cqp-badge-count {
@@ -323,9 +313,11 @@ details[open] > .pylint-header {
     margin-top: 0.25rem;
 }
 
-/* Ace gutter tooltip — enable word-wrap for CQP annotation text */
+/* Ace gutter tooltip — clean multi-line rendering for multiple issues per line */
 .ace_tooltip {
     white-space: pre-wrap !important;
-    max-width: 320px !important;
+    max-width: 400px !important;
     word-break: break-word !important;
+    line-height: 1.5 !important;
+    padding: 0.4rem 0.6rem !important;
 }

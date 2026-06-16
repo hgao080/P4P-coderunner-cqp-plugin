@@ -46,8 +46,6 @@ class lint_renderer {
                 'error_message' => get_string('linterror', 'local_coderunner_cqp_linter'),
                 'has_messages' => false,
                 'cqp_groups' => [],
-                'score' => '?',
-                'scoreclass' => 'badge-secondary',
                 'total_issues' => 0,
             ]);
         }
@@ -80,23 +78,11 @@ class lint_renderer {
         ksort($cqpgroups);
         $cqpgroups = array_values($cqpgroups);
 
-        // Determine score badge class.
-        $score = round($result->score, 1);
-        if ($score >= 8.0) {
-            $scoreclass = 'badge-success';
-        } else if ($score >= 5.0) {
-            $scoreclass = 'badge-warning';
-        } else {
-            $scoreclass = 'badge-danger';
-        }
-
         $data = [
             'panelid' => $panelid,
             'has_error' => false,
             'has_messages' => $totalissues > 0,
             'cqp_groups' => $cqpgroups,
-            'score' => number_format($score, 1),
-            'scoreclass' => $scoreclass,
             'total_issues' => $totalissues,
             'no_issues_message' => get_string('noissues', 'local_coderunner_cqp_linter'),
         ];

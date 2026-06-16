@@ -152,11 +152,11 @@ define(['core/ajax'], function(Ajax) {
                 // shows one merged entry when two issues end up on one line
                 // after edits.
                 var key = row + '|' + annotationType(t.msg.type);
-                var text = 'CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name +
-                           ' (' + t.msg.symbol + ')\n' +
+                var text = '• CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name +
+                           ' (' + t.msg.symbol + ')\n  ' +
                            t.msg.message;
                 if (seen[key] !== undefined) {
-                    annotations[seen[key]].text += '\n\n---\n\n' + text;
+                    annotations[seen[key]].text += '\n\n' + text;
                     return;
                 }
                 seen[key] = annotations.length;
@@ -208,10 +208,11 @@ define(['core/ajax'], function(Ajax) {
             return html;
         }
 
-        // Principle summary badges.
+        // Principle summary badges (also serve as filter toggles via initPanelFilter).
         html += '<div class="cqp-principle-summary">';
         data.principles.forEach(function(p) {
             html += '<span class="cqp-principle-badge cqp-principle-' + p.number + '" ' +
+                    'data-cqp-number="' + p.number + '" ' +
                     'title="' + escapeAttr(p.short) + '">' +
                     'CQP ' + p.number + ': ' + escapeHtml(p.name) +
                     ' <span class="cqp-badge-count">(' + p.count + ')</span></span>';
@@ -220,7 +221,7 @@ define(['core/ajax'], function(Ajax) {
 
         // Message groups by principle.
         data.principles.forEach(function(group) {
-            html += '<div class="cqp-group">';
+            html += '<div class="cqp-group" data-cqp-number="' + group.number + '">';
             html += '<div class="cqp-group-header cqp-principle-' + group.number + '-header">';
             html += '<strong>CQP ' + group.number + ': ' + escapeHtml(group.name) + '</strong>';
             html += '</div>';
@@ -523,6 +524,7 @@ define(['core/ajax'], function(Ajax) {
 
                 resultsDiv.innerHTML = buildResultsPanel(data);
                 resultsDiv.style.display = '';
+                initPanelFilter(resultsDiv);
 
                 // Update the cached result so Check/Precheck listeners can use it.
                 lastLintResult = {issuecount: data.total_issues, principles: data.principles};
@@ -548,11 +550,132 @@ define(['core/ajax'], function(Ajax) {
         attachCoderunnerListeners(questionDiv, slotInfo, function() { return lastLintResult; });
     }
 
+    /**
+     * Make principle badges in a panel act as filter toggles.
+     *
+     * Clicking a badge hides all groups for other principles (and dims their
+     * badges). Clicking again deselects it. Works on both the JS-generated
+     * results panel and the server-rendered review panel.
+     *
+     * @param {HTMLElement} panel Container element with .cqp-principle-badge
+     *                            and .cqp-group[data-cqp-number] children.
+     */
+    function initPanelFilter(panel) {
+        var badges = panel.querySelectorAll('.cqp-principle-badge[data-cqp-number]');
+        if (badges.length < 2) {
+            return; // Nothing useful to filter with a single principle.
+        }
+
+        var activeFilters = [];
+
+        function updateFilter() {
+            panel.querySelectorAll('.cqp-group[data-cqp-number]').forEach(function(group) {
+                var num = parseInt(group.dataset.cqpNumber, 10);
+                group.style.display = (activeFilters.length === 0 || activeFilters.indexOf(num) !== -1)
+                    ? '' : 'none';
+            });
+            badges.forEach(function(b) {
+                var num = parseInt(b.dataset.cqpNumber, 10);
+                var selected = activeFilters.length === 0 || activeFilters.indexOf(num) !== -1;
+                if (selected) {
+                    b.classList.remove('cqp-badge-dimmed');
+                } else {
+                    b.classList.add('cqp-badge-dimmed');
+                }
+            });
+        }
+
+        badges.forEach(function(badge) {
+            badge.addEventListener('click', function() {
+                var num = parseInt(badge.dataset.cqpNumber, 10);
+                var idx = activeFilters.indexOf(num);
+                if (idx !== -1) {
+                    activeFilters.splice(idx, 1);
+                } else {
+                    activeFilters.push(num);
+                }
+                updateFilter();
+            });
+        });
+    }
+
+    /**
+     * Apply Ace editor gutter annotations and line highlights from a
+     * server-rendered lint panel (review page).
+     *
+     * The panel's .pylint-message-row elements carry data-line and severity
+     * CSS classes that map directly to the same highlight classes used on
+     * the attempt page.
+     *
+     * @param {HTMLElement} questionDiv The .que.coderunner container.
+     * @param {HTMLElement} panel       The .coderunner-pylint-panel element.
+     */
+    function applyReviewAnnotations(questionDiv, panel) {
+        var editor = findAceEditor(questionDiv);
+        if (!editor) {
+            return;
+        }
+
+        var Range;
+        try {
+            Range = ace.require('ace/range').Range;
+        } catch (e) {
+            return;
+        }
+
+        var session = editor.getSession();
+        var annotations = [];
+
+        panel.querySelectorAll('.pylint-message-row').forEach(function(row) {
+            var lineNum = parseInt(row.dataset.line || '', 10);
+            if (isNaN(lineNum) || lineNum < 1) {
+                return;
+            }
+            var aceRow = lineNum - 1;
+
+            // Build tooltip text from the group header and message cell.
+            var group = row.closest ? row.closest('.cqp-group') : null;
+            var headerEl = group ? group.querySelector('.cqp-group-header strong') : null;
+            var cqpLabel = headerEl ? headerEl.textContent.trim() : 'CQP issue';
+            var msgCell = row.querySelector('.pylint-msg-col');
+            var msgText = msgCell ? msgCell.textContent.trim() : '';
+            var annotText = '• ' + cqpLabel + '\n  ' + msgText;
+
+            // Merge multiple issues on the same line into one annotation entry.
+            var existing = null;
+            for (var i = 0; i < annotations.length; i++) {
+                if (annotations[i].row === aceRow) { existing = annotations[i]; break; }
+            }
+            if (existing) {
+                existing.text += '\n\n' + annotText;
+            } else {
+                annotations.push({row: aceRow, column: 0, text: annotText, type: 'warning'});
+            }
+
+            // Map pylint-* severity class to cqp-highlight-* marker class.
+            var cssClass = 'cqp-highlight-convention';
+            row.className.split(/\s+/).forEach(function(cls) {
+                if (cls !== 'pylint-message-row' && cls.indexOf('pylint-') === 0) {
+                    cssClass = cls.replace('pylint-', 'cqp-highlight-');
+                }
+            });
+            session.addMarker(new Range(aceRow, 0, aceRow, Number.MAX_VALUE), cssClass, 'fullLine', false);
+        });
+
+        if (annotations.length > 0) {
+            session.setAnnotations(annotations);
+        }
+    }
+
     return {
         /**
          * Initialise the CQP linter for the specific CodeRunner questions
          * passed in by the PHP side. Only questions whose teacher has
          * explicitly enabled linting should appear in the slots list.
+         *
+         * On review pages, server-rendered panels are already in the DOM:
+         * we apply Ace editor highlights from them and make badges filterable.
+         * On attempt/preview pages, we inject the interactive CQP button.
          *
          * @param {Object} config {slots: [{slot, questionid}]}
          */
@@ -568,6 +691,16 @@ define(['core/ajax'], function(Ajax) {
                     if (!questionDiv) {
                         return;
                     }
+
+                    // Review page: server-rendered panel already present in DOM.
+                    var existingPanel = questionDiv.querySelector('.coderunner-pylint-panel');
+                    if (existingPanel) {
+                        applyReviewAnnotations(questionDiv, existingPanel);
+                        initPanelFilter(existingPanel);
+                        return;
+                    }
+
+                    // Attempt/preview page: inject the interactive button.
                     var wrapper = getOrCreateWrapper(questionDiv);
                     if (!wrapper) {
                         return;
@@ -576,7 +709,7 @@ define(['core/ajax'], function(Ajax) {
                 });
             };
 
-            // Delay to let Ace editors initialise.
+            // Delay to let Ace editors and injected panels settle.
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', function() {
                     setTimeout(doInit, 500);

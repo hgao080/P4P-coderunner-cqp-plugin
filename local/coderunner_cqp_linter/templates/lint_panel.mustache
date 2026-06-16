@@ -17,8 +17,6 @@
     - error_message (string): Error message if has_error is true
     - has_messages (bool): Whether there are any lint messages
     - cqp_groups (array): Groups of messages by CQP principle
-    - score (string): Pylint score (formatted)
-    - scoreclass (string): Bootstrap badge class for score
     - total_issues (int): Total number of issues found
     - no_issues_message (string): Message when no issues found
 
@@ -48,8 +46,6 @@
                 ]
             }
         ],
-        "score": "7.5",
-        "scoreclass": "badge-warning",
         "total_issues": 1
     }
 }}
@@ -58,9 +54,6 @@
         <summary class="pylint-header">
             <span class="pylint-title">
                 {{#str}}lintresults, local_coderunner_cqp_linter{{/str}}
-            </span>
-            <span class="badge {{scoreclass}} pylint-score">
-                {{#str}}score, local_coderunner_cqp_linter{{/str}}: {{score}}/10
             </span>
             {{#total_issues}}
                 <span class="badge badge-secondary pylint-count">
@@ -78,8 +71,18 @@
 
             {{^has_error}}
                 {{#has_messages}}
+                    <div class="cqp-principle-summary">
+                        {{#cqp_groups}}
+                        <span class="cqp-principle-badge cqp-principle-{{cqp_number}}"
+                              data-cqp-number="{{cqp_number}}"
+                              title="{{cqp_short}}">
+                            CQP {{cqp_number}}: {{cqp_name}}
+                            <span class="cqp-badge-count">({{count}})</span>
+                        </span>
+                        {{/cqp_groups}}
+                    </div>
                     {{#cqp_groups}}
-                        <div class="cqp-group">
+                        <div class="cqp-group" data-cqp-number="{{cqp_number}}">
                             <div class="cqp-group-header cqp-principle-{{cqp_number}}-header">
                                 <strong>CQP {{cqp_number}}: {{cqp_name}}</strong>
                                 <span class="cqp-group-count">({{count}})</span>
