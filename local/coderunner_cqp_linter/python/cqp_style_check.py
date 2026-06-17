@@ -34,7 +34,8 @@ def check_style(source, disabled_str='import-error', min_severity='convention'):
     graded output stream.
     """
     try:
-        from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
+        from cqp_principles import (PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES,
+                                     normalise_pylint_code)
 
         principle_keys = [
             'clear_presentation', 'explanatory_language', 'consistent_code',
@@ -79,6 +80,7 @@ def check_style(source, disabled_str='import-error', min_severity='convention'):
                 result = json.loads(_captured.getvalue() or '{}')
                 for msg in result.get('messages', []):
                     code = msg.get('messageId') or msg.get('message-id', '')
+                    code = normalise_pylint_code(code)
                     if code not in code_map:
                         continue
                     sev = _code_to_severity(code)

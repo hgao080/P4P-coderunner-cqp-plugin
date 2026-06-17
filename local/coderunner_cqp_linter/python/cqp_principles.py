@@ -60,6 +60,23 @@ CUSTOM_CODES = frozenset({
     'W9007',   # block-comment-wrong-indent
 })
 
+# ---------------------------------------------------------------------------
+# Pylint has renamed some message IDs across versions. The principle dicts
+# below are keyed by the canonical ID this plugin uses; normalise any ID a
+# newer pylint emits back to that key before looking it up, so matching works
+# regardless of the installed pylint version.
+#   C0113 (unneeded-not) was renamed to C0117 (unnecessary-negation) in
+#   pylint 3.x; both still enable the same check via --enable=C0113.
+# ---------------------------------------------------------------------------
+PYLINT_CODE_ALIASES = {
+    'C0117': 'C0113',
+}
+
+
+def normalise_pylint_code(code):
+    """Map a pylint message ID to the canonical ID used as a principle key."""
+    return PYLINT_CODE_ALIASES.get(code, code)
+
 
 # ---------------------------------------------------------------------------
 # 1. Clear Presentation

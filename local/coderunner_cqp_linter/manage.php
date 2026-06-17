@@ -41,22 +41,30 @@ $PAGE->set_pagelayout('admin');
 $PAGE->set_title(get_string('manage_title', 'local_coderunner_cqp_linter'));
 $PAGE->set_heading(get_string('manage_heading', 'local_coderunner_cqp_linter'));
 
+$existing = $DB->get_record('local_crcqp_qconfig', ['questionid' => $questionid]);
+
+// Codes disabled for this question, used to render the checkbox grid unticked.
+$disabledcodes = $existing
+    ? array_values(array_filter(array_map('trim', explode(',', $existing->disabled_checks ?? ''))))
+    : [];
+
 $form = new \local_coderunner_cqp_linter\form\manage_form(null, [
-    'questionid'   => $questionid,
-    'questionname' => $question->name,
-    'returnurl'    => $returnurl,
+    'questionid'    => $questionid,
+    'questionname'  => $question->name,
+    'returnurl'     => $returnurl,
+    'disabledcodes' => $disabledcodes,
 ]);
 
-$existing = $DB->get_record('local_crcqp_qconfig', ['questionid' => $questionid]);
+// Drives the group toggle and per-card counters on the checkbox grid.
+$PAGE->requires->js_init_code(\local_coderunner_cqp_linter\form\manage_form::get_checks_js(), true);
+
 if ($existing) {
     $form->set_data([
-        'enabled'         => (int)$existing->enabled,
-        'disabled_checks' => $existing->disabled_checks,
-        'min_severity'    => $existing->min_severity ?: '',
-        'marks_enabled'   => (int)($existing->marks_enabled ?? 0),
-        'marks_weight'    => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
-        'questionid'      => $questionid,
-        'returnurl'       => $returnurl,
+        'enabled'       => (int)$existing->enabled,
+        'marks_enabled' => (int)($existing->marks_enabled ?? 0),
+        'marks_weight'  => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
+        'questionid'    => $questionid,
+        'returnurl'     => $returnurl,
     ]);
 }
 
@@ -67,22 +75,31 @@ if ($form->is_cancelled()) {
 } else if ($data = $form->get_data()) {
     $now = time();
 
+    // Collect unchecked codes. These are plain named inputs (not form elements),
+    // so read them from the submitted request: an unticked checkbox is absent.
+    $uncheckedcodes = [];
+    foreach (\local_coderunner_cqp_linter\form\manage_form::get_all_codes() as $pnum => $codes) {
+        foreach ($codes as $code => $symbol) {
+            $fieldname = \local_coderunner_cqp_linter\form\manage_form::CHECK_PREFIX . $code;
+            if (!optional_param($fieldname, 0, PARAM_BOOL)) {
+                $uncheckedcodes[] = $code;
+            }
+        }
+    }
+    $questdisable = implode(',', $uncheckedcodes);
+
     $marksenabledold = !empty($existing->marks_enabled);
     $marksenablednew = !empty($data->marks_enabled);
     $weight          = max(0.001, (float)($data->marks_weight ?? 1.0));
-    // Combine global + per-question disabled checks, same logic as get_lint_config().
     $globaldisable   = get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error';
-    $questdisable    = trim((string)($data->disabled_checks ?? ''));
     $disabled        = $questdisable !== '' ? $globaldisable . ',' . $questdisable : $globaldisable;
-    $minseverity     = !empty($data->min_severity) ? $data->min_severity
-                        : (get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention');
 
     $originalaon = isset($existing->original_allornothing) ? (int)$existing->original_allornothing : null;
 
     if ($marksenablednew) {
-        // Enable or re-enable (re-injects with current config).
+        // Enable or re-enable (re-injects with current config). Always use convention severity.
         $originalaon = \local_coderunner_cqp_linter\question_marks_manager::enable(
-            $questionid, $weight, $disabled, $minseverity
+            $questionid, $weight, $disabled, 'convention'
         );
     } else if ($marksenabledold && !$marksenablednew) {
         // Disabling marks mode: restore allornothing.
@@ -92,16 +109,14 @@ if ($form->is_cancelled()) {
     }
 
     $record = (object)[
-        'questionid'           => $questionid,
-        'enabled'              => !empty($data->enabled) ? 1 : 0,
-        'disabled_checks'      => trim((string)($data->disabled_checks ?? '')) !== ''
-                                    ? trim((string)$data->disabled_checks)
-                                    : null,
-        'min_severity'         => !empty($data->min_severity) ? $data->min_severity : null,
-        'marks_enabled'        => $marksenablednew ? 1 : 0,
-        'marks_weight'         => $marksenablednew ? $weight : null,
+        'questionid'            => $questionid,
+        'enabled'               => !empty($data->enabled) ? 1 : 0,
+        'disabled_checks'       => $questdisable !== '' ? $questdisable : null,
+        'min_severity'          => null,
+        'marks_enabled'         => $marksenablednew ? 1 : 0,
+        'marks_weight'          => $marksenablednew ? $weight : null,
         'original_allornothing' => $originalaon,
-        'timemodified'         => $now,
+        'timemodified'          => $now,
     ];
     if ($existing) {
         $record->id = $existing->id;

@@ -183,7 +183,8 @@ with open('cqp_principles.py', 'wb') as _f:
 with open('cqp_custom_checkers.py', 'wb') as _f:
     _f.write(base64.b64decode('$checkerb64'))
 
-from cqp_principles import PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES
+from cqp_principles import (PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES,
+                            normalise_pylint_code)
 
 DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
 
@@ -267,6 +268,7 @@ try:
             result = json.loads(_pylint_out)
             for msg in result.get('messages', []):
                 code = msg.get('messageId') or msg.get('message-id', '')
+                code = normalise_pylint_code(code)
                 if code in code_map:
                     info = code_map[code]
                     num = PRINCIPLE_NUMBERS.get(info['key'], 0)

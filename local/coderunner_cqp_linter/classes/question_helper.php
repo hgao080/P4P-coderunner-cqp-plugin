@@ -198,15 +198,10 @@ class question_helper {
             'rcfile'       => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
         ];
 
-        // Merge per-question overrides.
+        // Merge per-question disabled check overrides.
         $qconfig = self::get_qconfig($questionid);
-        if ($qconfig) {
-            if (!empty($qconfig->disabled_checks)) {
-                $config['disable'] .= ',' . $qconfig->disabled_checks;
-            }
-            if (!empty($qconfig->min_severity)) {
-                $config['min_severity'] = $qconfig->min_severity;
-            }
+        if ($qconfig && !empty($qconfig->disabled_checks)) {
+            $config['disable'] .= ',' . $qconfig->disabled_checks;
         }
 
         return $config;
