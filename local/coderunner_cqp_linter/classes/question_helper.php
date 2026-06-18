@@ -97,6 +97,50 @@ class question_helper {
     }
 
     /**
+     * Decide whether a lint interaction should be recorded as research data.
+     *
+     * Only genuine student interactions are kept. Excludes:
+     *  - site admins;
+     *  - previews and other interactions with no real quiz attempt (attemptid 0),
+     *    which on this plugin only ever come from staff preview pages;
+     *  - users with teacher-level capability in the quiz (e.g. a teacher doing a
+     *    test attempt).
+     *
+     * @param int $userid The user performing the interaction.
+     * @param int $attemptid The quiz attempt ID, or 0 for previews.
+     * @return bool True if the event should be stored.
+     */
+    public static function should_record_event(int $userid, int $attemptid): bool {
+        global $DB;
+
+        // Site admins are never research subjects.
+        if (is_siteadmin($userid)) {
+            return false;
+        }
+
+        // No real quiz attempt → staff preview/ad-hoc run, not student data.
+        if ($attemptid <= 0) {
+            return false;
+        }
+
+        // Resolve the quiz module context and exclude teachers/managers.
+        $attempt = $DB->get_record('quiz_attempts', ['id' => $attemptid], 'quiz', IGNORE_MISSING);
+        if (!$attempt) {
+            return false;
+        }
+        try {
+            $cm = get_coursemodule_from_instance('quiz', $attempt->quiz, 0, false, MUST_EXIST);
+            $context = \context_module::instance($cm->id);
+        } catch (\Throwable $e) {
+            // Context can't be resolved; it's still a real attempt, so keep it.
+            return true;
+        }
+
+        // Anyone who can grade the quiz is staff, not a student.
+        return !has_capability('mod/quiz:grade', $context, $userid);
+    }
+
+    /**
      * Get the CQP config record for a question, falling back to previous versions.
      *
      * In Moodle 4.x, editing a question creates a new question ID (new version).
@@ -210,9 +254,11 @@ class question_helper {
     /**
      * Build the resultsjson string for a lint_event row from a pylint result.
      *
-     * Produces {"principles":[{"n":1,"count":3},...]}, which matches the format
-     * the JS sends via record_lint_event so both button and submit rows are
-     * queryable the same way in report.php.
+     * Produces:
+     *   {"principles":[{"n":1,"name":"Clear Presentation","count":3}],
+     *    "violations":[{"code":"C0301","symbol":"line-too-long","line":19,"cqp":1}]}
+     * which matches the format the JS sends via record_lint_event so both button
+     * and submit rows are queryable the same way in report.php.
      *
      * @param \local_coderunner_cqp_linter\tools\pylint\result $result
      * @param string $minseverity
@@ -223,17 +269,26 @@ class question_helper {
         string $minseverity = 'convention'
     ): string {
         $counts = [];
+        $names = [];
+        $violations = [];
         foreach ($result->get_filtered($minseverity) as $msg) {
             $principle = cqp_mapper::get_principle($msg);
             $n = $principle['number'];
             $counts[$n] = ($counts[$n] ?? 0) + 1;
+            $names[$n] = $principle['name'];
+            $violations[] = [
+                'code'   => $msg->messageid,
+                'symbol' => $msg->symbol,
+                'line'   => (int)$msg->line,
+                'cqp'    => $n,
+            ];
         }
         $principles = [];
         foreach ($counts as $n => $count) {
-            $principles[] = ['n' => $n, 'count' => $count];
+            $principles[] = ['n' => $n, 'name' => $names[$n], 'count' => $count];
         }
         usort($principles, fn($a, $b) => $a['n'] - $b['n']);
-        return json_encode(['principles' => $principles]);
+        return json_encode(['principles' => $principles, 'violations' => $violations]);
     }
 
     /**

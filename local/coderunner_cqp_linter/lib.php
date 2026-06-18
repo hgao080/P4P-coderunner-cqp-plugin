@@ -313,7 +313,7 @@ function local_coderunner_cqp_linter_build_panels(): array {
  * @return \question_usage_by_activity|null
  */
 function local_coderunner_cqp_linter_get_quba(): ?\question_usage_by_activity {
-    global $DB;
+    global $DB, $USER;
 
     $attemptid = optional_param('attempt', 0, PARAM_INT);
     if (!empty($attemptid)) {
@@ -329,41 +329,80 @@ function local_coderunner_cqp_linter_get_quba(): ?\question_usage_by_activity {
         }
     }
 
+    // Preview pages (both /question/preview.php and the qbank
+    // /question/bank/previewquestion/preview.php) pass the question usage id as
+    // 'previewid' on every request after the first.
     $previewid = optional_param('previewid', 0, PARAM_INT);
     if (!empty($previewid)) {
-        $preview = $DB->get_record('question_previews', ['id' => $previewid]);
-        if (!$preview) {
-            return null;
-        }
         try {
-            return \question_engine::load_questions_usage_by_activity($preview->qubaid);
+            return \question_engine::load_questions_usage_by_activity($previewid);
         } catch (\Exception $e) {
-            debugging('CodeRunner CQP Linter: Failed to load preview question usage: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            // Legacy fallback: very old flow stored a mapping row in question_previews.
+            if ($DB->get_manager()->table_exists('question_previews')) {
+                $preview = $DB->get_record('question_previews', ['id' => $previewid]);
+                if ($preview && isset($preview->qubaid)) {
+                    try {
+                        return \question_engine::load_questions_usage_by_activity($preview->qubaid);
+                    } catch (\Exception $e2) {
+                        debugging('CodeRunner CQP Linter: Failed to load preview usage: ' . $e2->getMessage(),
+                            DEBUG_DEVELOPER);
+                    }
+                }
+            }
+            debugging('CodeRunner CQP Linter: Failed to load preview usage: ' . $e->getMessage(), DEBUG_DEVELOPER);
             return null;
         }
     }
 
-    // qbank preview page: URL never has previewid — find the most recent preview
-    // session for the current user in question_previews.
+    // qbank preview page, initial load: the URL has no previewid yet. The quba
+    // was just created and saved as a 'core_question_preview' usage owned by the
+    // current user's context. Find the most recent such usage that contains the
+    // question being previewed (the 'id' param), across all of its versions.
     $script = $_SERVER['SCRIPT_NAME'] ?? '';
-    if (strpos($script, '/previewquestion/') !== false) {
-        global $USER;
-        if (!$DB->get_manager()->table_exists('question_previews')) {
+    if (strpos($script, '/previewquestion/') !== false || strpos($script, '/preview.php') !== false) {
+        $questionid = optional_param('id', 0, PARAM_INT);
+
+        try {
+            $usercontext = \context_user::instance($USER->id);
+        } catch (\Exception $e) {
             return null;
         }
+
+        // Expand the question id to every version in its bank entry so we still
+        // match if the preview is showing a different version (Moodle 4.x+).
+        $qids = $questionid > 0 ? [$questionid] : [];
+        if ($questionid > 0 && $DB->get_manager()->table_exists('question_versions')) {
+            $ver = $DB->get_record('question_versions', ['questionid' => $questionid], 'questionbankentryid');
+            if ($ver) {
+                $vids = $DB->get_fieldset_select('question_versions', 'questionid',
+                    'questionbankentryid = ?', [$ver->questionbankentryid]);
+                if ($vids) {
+                    $qids = $vids;
+                }
+            }
+        }
+
         try {
-            $rows = $DB->get_records_sql(
-                'SELECT qp.qubaid FROM {question_previews} qp
-                  WHERE qp.userid = :userid
-                  ORDER BY qp.id DESC',
-                ['userid' => $USER->id], 0, 1
-            );
-            $row = $rows ? reset($rows) : null;
-            if ($row) {
-                return \question_engine::load_questions_usage_by_activity($row->qubaid);
+            $params = ['comp' => 'core_question_preview', 'ctx' => $usercontext->id];
+            $where = 'qu.component = :comp AND qu.contextid = :ctx';
+            if (!empty($qids)) {
+                [$insql, $inparams] = $DB->get_in_or_equal($qids, SQL_PARAMS_NAMED, 'q');
+                $where .= ' AND qa.questionid ' . $insql;
+                $params += $inparams;
+            }
+            $sql = "SELECT DISTINCT qu.id
+                      FROM {question_usages} qu
+                      JOIN {question_attempts} qa ON qa.questionusageid = qu.id
+                     WHERE $where
+                  ORDER BY qu.id DESC";
+            $rows = $DB->get_records_sql($sql, $params, 0, 1);
+            if ($rows) {
+                $row = reset($rows);
+                return \question_engine::load_questions_usage_by_activity($row->id);
             }
         } catch (\Exception $e) {
-            debugging('CodeRunner CQP Linter: Failed to load qbank preview usage: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            debugging('CodeRunner CQP Linter: Failed to load qbank preview usage: ' . $e->getMessage(),
+                DEBUG_DEVELOPER);
         }
         return null;
     }

@@ -328,10 +328,22 @@ define(['core/ajax'], function(Ajax) {
      * @param {Array} principles Array with {number, count} or {n, count} objects.
      * @return {Object} Summary object {principles: [{n, count}]}.
      */
-    function buildSummary(principles) {
+    function buildSummary(principles, messages) {
         return {
-            principles: principles.map(function(p) {
-                return {n: p.number !== undefined ? p.number : p.n, count: p.count};
+            principles: (principles || []).map(function(p) {
+                return {
+                    n: p.number !== undefined ? p.number : p.n,
+                    name: p.name || '',
+                    count: p.count
+                };
+            }),
+            violations: (messages || []).map(function(m) {
+                return {
+                    code: m.code || m.symbol || '',
+                    symbol: m.symbol || '',
+                    line: m.line || 0,
+                    cqp: m.cqp_number !== undefined ? m.cqp_number : (m.cqp || 0)
+                };
             })
         };
     }
@@ -342,9 +354,10 @@ define(['core/ajax'], function(Ajax) {
      * @param {Object} slotInfo   {slot, questionid}
      * @param {number} issuecount Total issues found.
      * @param {Array}  principles Principle objects with number/count.
+     * @param {Array}  messages   Per-violation messages (code, symbol, line, cqp_number).
      * @param {string} eventtype  'cqp'
      */
-    function recordLintEvent(slotInfo, issuecount, principles, eventtype) {
+    function recordLintEvent(slotInfo, issuecount, principles, messages, eventtype) {
         var urlParams = new URLSearchParams(window.location.search);
         var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
 
@@ -355,7 +368,7 @@ define(['core/ajax'], function(Ajax) {
                 attemptid:   attemptId,
                 slot:        slotInfo.slot,
                 issuecount:  issuecount,
-                resultsjson: JSON.stringify(buildSummary(principles)),
+                resultsjson: JSON.stringify(buildSummary(principles, messages)),
                 eventtype:   eventtype || 'cqp'
             }
         }])[0].catch(function() {
@@ -373,9 +386,10 @@ define(['core/ajax'], function(Ajax) {
      * @param {Object} slotInfo   {slot, questionid}
      * @param {number} issuecount Total issues from the last CQP check (0 if none yet).
      * @param {Array}  principles Principle objects from the last CQP check.
+     * @param {Array}  messages   Per-violation messages from the last CQP check.
      * @param {string} eventtype  'check' or 'precheck'
      */
-    function recordLintEventKeepalive(slotInfo, issuecount, principles, eventtype) {
+    function recordLintEventKeepalive(slotInfo, issuecount, principles, messages, eventtype) {
         var urlParams = new URLSearchParams(window.location.search);
         var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
 
@@ -391,7 +405,7 @@ define(['core/ajax'], function(Ajax) {
                 attemptid:   attemptId,
                 slot:        slotInfo.slot,
                 issuecount:  issuecount,
-                resultsjson: JSON.stringify(buildSummary(principles)),
+                resultsjson: JSON.stringify(buildSummary(principles, messages)),
                 eventtype:   eventtype
             }
         }]);
@@ -434,7 +448,7 @@ define(['core/ajax'], function(Ajax) {
             checkBtn.dataset.cqpListened = '1';
             checkBtn.addEventListener('click', function() {
                 var r = getLastResult();
-                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, 'check');
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages, 'check');
             });
         }
 
@@ -442,7 +456,7 @@ define(['core/ajax'], function(Ajax) {
             precheckBtn.dataset.cqpListened = '1';
             precheckBtn.addEventListener('click', function() {
                 var r = getLastResult();
-                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, 'precheck');
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages, 'precheck');
             });
         }
     }
@@ -473,7 +487,7 @@ define(['core/ajax'], function(Ajax) {
 
         // Tracks the most recent lint result so Check/Precheck listeners can
         // include it in their keepalive event even after a page reload.
-        var lastLintResult = {issuecount: 0, principles: []};
+        var lastLintResult = {issuecount: 0, principles: [], messages: []};
 
         btn.addEventListener('click', function() {
             var code = getCode(questionDiv);
@@ -527,9 +541,13 @@ define(['core/ajax'], function(Ajax) {
                 initPanelFilter(resultsDiv);
 
                 // Update the cached result so Check/Precheck listeners can use it.
-                lastLintResult = {issuecount: data.total_issues, principles: data.principles};
+                lastLintResult = {
+                    issuecount: data.total_issues,
+                    principles: data.principles,
+                    messages: data.messages
+                };
 
-                recordLintEvent(slotInfo, data.total_issues, data.principles, 'cqp');
+                recordLintEvent(slotInfo, data.total_issues, data.principles, data.messages, 'cqp');
 
                 btn.disabled = false;
                 btn.textContent = 'Check Code Quality';

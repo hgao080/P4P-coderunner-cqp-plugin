@@ -32,6 +32,18 @@ $context = context_system::instance();
 require_login();
 require_capability('local/coderunner_cqp_linter:manageglobalsettings', $context);
 
+// Defensive: research output must contain genuine student interactions only.
+// Exclude previews / interactions with no real quiz attempt, and any site
+// administrators — even if older rows pre-date the recording-time guard.
+$params = [];
+$where = 'e.attemptid > 0';
+$adminids = array_filter(array_map('trim', explode(',', (string)$CFG->siteadmins)));
+if (!empty($adminids)) {
+    [$notinsql, $notinparams] = $DB->get_in_or_equal($adminids, SQL_PARAMS_NAMED, 'adm', false);
+    $where .= " AND e.userid $notinsql";
+    $params += $notinparams;
+}
+
 // Build the dataset — join to user and question for readable columns.
 $sql = "SELECT e.id,
                u.username,
@@ -48,9 +60,10 @@ $sql = "SELECT e.id,
           FROM {local_crcqp_lint_event} e
           JOIN {user}     u ON u.id = e.userid
           JOIN {question} q ON q.id = e.questionid
+         WHERE $where
       ORDER BY e.timecreated ASC";
 
-$rows = $DB->get_records_sql($sql);
+$rows = $DB->get_records_sql($sql, $params);
 
 // ── CSV download ─────────────────────────────────────────────────────────────
 if ($download === 'csv') {
@@ -73,6 +86,7 @@ if ($download === 'csv') {
         'slot',
         'issuecount',
         'principles_violated',   // extracted from JSON for convenience
+        'violations',            // per-check detail: code:symbol@line (CQPn)
         'resultsjson',
         'eventtype',
         'timecreated_unix',
@@ -84,7 +98,18 @@ if ($download === 'csv') {
         $principlenumbers = [];
         if (!empty($decoded['principles'])) {
             foreach ($decoded['principles'] as $p) {
-                $principlenumbers[] = 'CQP' . $p['n'] . '×' . $p['count'];
+                $label = 'CQP' . $p['n'];
+                if (!empty($p['name'])) {
+                    $label .= ' ' . $p['name'];
+                }
+                $principlenumbers[] = $label . '×' . $p['count'];
+            }
+        }
+        $violationlist = [];
+        if (!empty($decoded['violations'])) {
+            foreach ($decoded['violations'] as $v) {
+                $violationlist[] = ($v['code'] ?? '') . ':' . ($v['symbol'] ?? '') .
+                    '@' . ($v['line'] ?? '') . ' (CQP' . ($v['cqp'] ?? '') . ')';
             }
         }
 
@@ -99,6 +124,7 @@ if ($download === 'csv') {
             $row->slot,
             $row->issuecount,
             implode('; ', $principlenumbers),
+            implode('; ', $violationlist),
             $row->resultsjson,
             $row->eventtype,
             $row->timecreated,
@@ -147,6 +173,7 @@ $table->head = [
     get_string('report_col_attempt', 'local_coderunner_cqp_linter'),
     get_string('report_col_issues', 'local_coderunner_cqp_linter'),
     get_string('report_col_principles', 'local_coderunner_cqp_linter'),
+    get_string('report_col_violations', 'local_coderunner_cqp_linter'),
     get_string('report_col_eventtype', 'local_coderunner_cqp_linter'),
     get_string('report_col_time', 'local_coderunner_cqp_linter'),
 ];
@@ -163,6 +190,13 @@ foreach ($preview as $row) {
         }
     }
 
+    $checks = [];
+    if (!empty($decoded['violations'])) {
+        foreach ($decoded['violations'] as $v) {
+            $checks[] = s(($v['code'] ?? '') . '@' . ($v['line'] ?? ''));
+        }
+    }
+
     $table->data[] = [
         $row->id,
         s($row->username) . ' (' . s($row->firstname . ' ' . $row->lastname) . ')',
@@ -170,6 +204,7 @@ foreach ($preview as $row) {
         $row->attemptid > 0 ? $row->attemptid : '—',
         $row->issuecount,
         implode(' ', $badges) ?: '—',
+        implode(', ', $checks) ?: '—',
         s($row->eventtype ?? 'button'),
         userdate($row->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
     ];

@@ -276,6 +276,7 @@ try:
                     all_messages.append({
                         'line':          int(msg.get('line', 0)),
                         'type':          code_to_type(code),
+                        'code':          code,
                         'symbol':        info['sym'],
                         'message':       info['expl'],
                         'cqp_number':    num,
@@ -318,6 +319,7 @@ try:
                 all_messages.append({
                     'line':          _lineno,
                     'type':          'convention',
+                    'code':          _code,
                     'symbol':        _info['sym'],
                     'message':       _info['expl'],
                     'cqp_number':    _num,
@@ -342,6 +344,7 @@ try:
                     all_messages.append({
                         'line':          _lineno,
                         'type':          'convention',
+                        'code':          _code,
                         'symbol':        _info['sym'],
                         'message':       _info['expl'],
                         'cqp_number':    _num,

@@ -101,9 +101,18 @@ class record_lint_event extends \external_api {
             }
         }
 
-        // Sanitise the JSON — re-encode to normalise and cap size.
+        // Research data must contain genuine student interactions only — skip
+        // site admins, staff previews (attemptid 0), and teacher test attempts.
+        if (!\local_coderunner_cqp_linter\question_helper::should_record_event(
+                (int)$USER->id, (int)$params['attemptid'])) {
+            return false;
+        }
+
+        // Sanitise the JSON — re-encode to normalise and cap size. The cap is
+        // generous because resultsjson now carries a per-violation list, which
+        // can be sizeable for submissions with many issues.
         $rawjson = $params['resultsjson'];
-        if (strlen($rawjson) > 8192) {
+        if (strlen($rawjson) > 65535) {
             $rawjson = '{}';
         }
         $decoded = json_decode($rawjson);

@@ -131,11 +131,20 @@ class observer {
         $quba = \question_engine::load_questions_usage_by_activity($attemptobj->uniqueid);
         $now  = time();
 
+        // Pre-cache lint results for everyone (so the review page is fast), but
+        // only store research events for genuine student attempts.
+        $recordevents = question_helper::should_record_event(
+            (int)$attemptobj->userid, (int)$attemptid);
+
         foreach ($quba->get_slots() as $slot) {
             $qa = $quba->get_question_attempt($slot);
 
             $result = question_helper::lint_question_attempt($qa);
             if ($result === null) {
+                continue;
+            }
+
+            if (!$recordevents) {
                 continue;
             }
 
