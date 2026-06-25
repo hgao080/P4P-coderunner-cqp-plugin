@@ -87,5 +87,27 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026061601, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026062100) {
+        $table = new xmldb_table('local_crcqp_qconfig');
+        $field = new xmldb_field('ai_enabled', XMLDB_TYPE_INTEGER, '1', null, XMLDB_NOTNULL, null, '0');
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after enabled.
+            $field->setPrevious('enabled');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026062100, 'local', 'coderunner_cqp_linter');
+    }
+
+    if ($oldversion < 2026062101) {
+        $table = new xmldb_table('local_crcqp_qconfig');
+        $field = new xmldb_field('ai_principles', XMLDB_TYPE_CHAR, '100', null, null, null, null);
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after ai_enabled.
+            $field->setPrevious('ai_enabled');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026062101, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }

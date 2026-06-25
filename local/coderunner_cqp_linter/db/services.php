@@ -41,4 +41,12 @@ $functions = [
         'ajax'          => true,
         'loginrequired' => true,
     ],
+    'local_coderunner_cqp_linter_run_ai_lint' => [
+        'classname'     => 'local_coderunner_cqp_linter\external\run_ai_lint',
+        'methodname'    => 'execute',
+        'description'   => 'Run AI-based CQP analysis on student code and return structured results.',
+        'type'          => 'read',
+        'ajax'          => true,
+        'loginrequired' => true,
+    ],
 ];

@@ -9,6 +9,8 @@
         <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
         <FIELD NAME="questionid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Foreign key to question.id"/>
         <FIELD NAME="enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" COMMENT="Whether linting is enabled for this question"/>
+        <FIELD NAME="ai_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Whether AI analysis is enabled for this question"/>
+        <FIELD NAME="ai_principles" TYPE="char" LENGTH="100" NOTNULL="false" COMMENT="Comma-separated CQP principle numbers for AI to assess; NULL means all semantic principles"/>
         <FIELD NAME="disabled_checks" TYPE="text" NOTNULL="false" COMMENT="Comma-separated pylint checks to disable for this question"/>
         <FIELD NAME="min_severity" TYPE="char" LENGTH="20" NOTNULL="false" COMMENT="Minimum severity override: convention, refactor, warning, error"/>
         <FIELD NAME="marks_enabled" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="0" COMMENT="Whether style check marks mode is enabled for this question"/>

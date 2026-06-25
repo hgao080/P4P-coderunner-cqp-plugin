@@ -76,9 +76,12 @@ function local_coderunner_cqp_linter_before_footer() {
         if (!\local_coderunner_cqp_linter\question_helper::is_lint_enabled($question->id)) {
             continue;
         }
+        $aibutton = \local_coderunner_cqp_linter\tools\ai\analyzer::runs_on('button')
+            && \local_coderunner_cqp_linter\question_helper::is_ai_enabled($question->id);
         $slotsinfo[] = [
             'slot'       => (int)$slot,
             'questionid' => (int)$question->id,
+            'ai'         => $aibutton ? 1 : 0,
         ];
     }
 

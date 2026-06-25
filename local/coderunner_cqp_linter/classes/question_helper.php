@@ -97,6 +97,73 @@ class question_helper {
     }
 
     /**
+     * Check if AI analysis is enabled for a specific question.
+     *
+     * Requires both the per-question opt-in and the site-wide AI switch+key.
+     *
+     * @param int $questionid The question ID.
+     * @return bool True if AI analysis should run for this question.
+     */
+    public static function is_ai_enabled(int $questionid): bool {
+        if (!\local_coderunner_cqp_linter\tools\ai\analyzer::is_globally_enabled()) {
+            return false;
+        }
+        $config = self::get_qconfig($questionid);
+        return $config ? !empty($config->ai_enabled) : false;
+    }
+
+    /**
+     * The CQP principle numbers AI should assess for a specific question.
+     *
+     * A NULL stored value (e.g. a question upgraded before per-question
+     * principles existed, or never saved through the form) means "all semantic
+     * principles". An empty string means the teacher deliberately selected none.
+     *
+     * @param int $questionid The question ID.
+     * @return int[] Sorted principle numbers (may be empty).
+     */
+    public static function get_ai_principles(int $questionid): array {
+        $semantic = \local_coderunner_cqp_linter\tools\ai\analyzer::SEMANTIC_PRINCIPLES;
+        $config = self::get_qconfig($questionid);
+        if (!$config || !property_exists($config, 'ai_principles') || $config->ai_principles === null) {
+            return $semantic;
+        }
+        $valid = array_flip($semantic);
+        $nums = array_values(array_unique(array_filter(
+            array_map('intval', array_filter(explode(',', (string)$config->ai_principles), 'strlen')),
+            fn($n) => isset($valid[$n])
+        )));
+        sort($nums);
+        return $nums;
+    }
+
+    /**
+     * Plain-text problem statement for a question, for use as AI context.
+     *
+     * Strips the question text HTML and caps the length so it can never dominate
+     * the AI request. Returns '' when there is no usable text.
+     *
+     * @param int $questionid The question ID.
+     * @return string Plain text (possibly empty).
+     */
+    public static function get_problem_text(int $questionid): string {
+        global $DB;
+
+        $q = $DB->get_record('question', ['id' => $questionid],
+            'questiontext, questiontextformat', IGNORE_MISSING);
+        if (!$q || trim((string)$q->questiontext) === '') {
+            return '';
+        }
+
+        $text = trim(content_to_text($q->questiontext, $q->questiontextformat));
+        $cap = \local_coderunner_cqp_linter\tools\ai\analyzer::MAX_PROBLEM_TEXT;
+        if (\core_text::strlen($text) > $cap) {
+            $text = \core_text::substr($text, 0, $cap);
+        }
+        return $text;
+    }
+
+    /**
      * Decide whether a lint interaction should be recorded as research data.
      *
      * Only genuine student interactions are kept. Excludes:

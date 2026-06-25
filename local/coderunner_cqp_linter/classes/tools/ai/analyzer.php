@@ -1,0 +1,401 @@
+<?php
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+namespace local_coderunner_cqp_linter\tools\ai;
+
+use local_coderunner_cqp_linter\cqp_mapper;
+
+/**
+ * Assesses student code against the "semantic" Code Quality Principles that a
+ * static linter cannot check well (naming, comment quality, duplication,
+ * modular structure, problem alignment) using an OpenAI-compatible chat model.
+ *
+ * Disabled unless an administrator enables it and supplies an API key. All
+ * failures are returned as a structured error; this class never throws so a
+ * flaky API can never disrupt linting or quiz submission.
+ *
+ * The returned payload mirrors the static linter shape so it can flow through
+ * the same UI and research recording:
+ *   ['success' => bool, 'total_issues' => int,
+ *    'messages' => [{line, type, code, symbol, message, cqp_number, cqp_name,
+ *                    cqp_guideline, source, title}],
+ *    'principles' => [{number, name, short, guideline, count, messages[]}],
+ *    'error' => string]
+ *
+ * @package    local_coderunner_cqp_linter
+ * @copyright  2026 Your Name
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+class analyzer {
+
+    /**
+     * CQP principles the AI can assess — the "semantic" ones a static linter
+     * cannot check well. The static linter handles principles 1, 3, and 5.
+     * @var int[]
+     */
+    public const SEMANTIC_PRINCIPLES = [2, 4, 6, 7, 8];
+
+    /** @var int Max characters of question text to send as context. */
+    public const MAX_PROBLEM_TEXT = 2000;
+
+    /** @var string OpenAI-compatible API base URL (no trailing slash). */
+    private string $baseurl;
+
+    /** @var string API key. */
+    private string $apikey;
+
+    /** @var string Model name. */
+    private string $model;
+
+    /** @var int Request timeout in seconds. */
+    private int $timeout;
+
+    /** @var int Max code size in bytes to send. */
+    private int $maxcodesize;
+
+    /** @var float Sampling temperature. */
+    private float $temperature;
+
+    /**
+     * Read configuration from plugin settings.
+     */
+    public function __construct() {
+        $cfg = fn($name, $default = '') => get_config('local_coderunner_cqp_linter', $name) ?: $default;
+
+        $this->baseurl     = rtrim((string)$cfg('ai_base_url', 'https://api.openai.com/v1'), '/');
+        $this->apikey      = (string)$cfg('ai_api_key', '');
+        $this->model       = (string)$cfg('ai_model', 'gpt-4o-mini');
+        $this->timeout     = (int)$cfg('ai_timeout', 30);
+        $this->maxcodesize = (int)$cfg('ai_max_code_size', 8000);
+        $this->temperature = (float)$cfg('ai_temperature', '0.2');
+    }
+
+    /**
+     * Whether AI analysis is enabled site-wide and usable (has a key).
+     *
+     * @return bool
+     */
+    public static function is_globally_enabled(): bool {
+        return (bool)get_config('local_coderunner_cqp_linter', 'ai_enabled')
+            && trim((string)get_config('local_coderunner_cqp_linter', 'ai_api_key')) !== '';
+    }
+
+    /**
+     * Whether the configured "when" setting includes the given trigger.
+     *
+     * @param string $trigger 'button' or 'submit'.
+     * @return bool
+     */
+    public static function runs_on(string $trigger): bool {
+        $when = get_config('local_coderunner_cqp_linter', 'ai_when') ?: 'button';
+        return $when === 'both' || $when === $trigger;
+    }
+
+    /**
+     * Reduce a caller-supplied principle list to the valid semantic set.
+     * Null means "all semantic principles".
+     *
+     * @param int[]|null $principles
+     * @return int[] Sorted, deduplicated, valid principle numbers.
+     */
+    private static function normalise_principles(?array $principles): array {
+        if ($principles === null) {
+            return self::SEMANTIC_PRINCIPLES;
+        }
+        $valid = array_flip(self::SEMANTIC_PRINCIPLES);
+        $nums = array_values(array_unique(array_filter(
+            array_map('intval', $principles),
+            fn($n) => isset($valid[$n])
+        )));
+        sort($nums);
+        return $nums;
+    }
+
+    /**
+     * Run AI analysis on the given code for the given principles.
+     *
+     * @param string $code Student Python source.
+     * @param int[]|null $principles Principle numbers to assess; null = all semantic.
+     * @param string $problemtext Plain-text problem statement for context (optional).
+     * @return array Payload (see class docblock).
+     */
+    public function analyze(string $code, ?array $principles = null, string $problemtext = ''): array {
+        $empty = ['success' => false, 'total_issues' => 0, 'messages' => [], 'principles' => []];
+
+        if (!self::is_globally_enabled()) {
+            return array_merge($empty, ['error' => 'AI analysis is not enabled.']);
+        }
+        if (trim($code) === '') {
+            return array_merge($empty, ['error' => 'No code provided.']);
+        }
+        if (strlen($code) > $this->maxcodesize) {
+            return array_merge($empty, ['error' => 'Code too large for AI analysis.']);
+        }
+
+        $principles = self::normalise_principles($principles);
+        if (empty($principles)) {
+            return array_merge($empty, ['error' => 'No principles configured for AI analysis.']);
+        }
+
+        // Bound the problem statement so it can never dominate token cost.
+        $problemtext = trim($problemtext);
+        if (\core_text::strlen($problemtext) > self::MAX_PROBLEM_TEXT) {
+            $problemtext = \core_text::substr($problemtext, 0, self::MAX_PROBLEM_TEXT);
+        }
+
+        try {
+            $content = $this->call_api($code, $principles, $problemtext);
+        } catch (\Throwable $e) {
+            debugging('CQP AI analyzer error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return array_merge($empty, ['error' => 'AI request failed.']);
+        }
+
+        if ($content === null) {
+            return array_merge($empty, ['error' => 'AI request failed.']);
+        }
+
+        return $this->build_payload($content, $principles);
+    }
+
+    /**
+     * Build the system prompt describing the principles to assess.
+     *
+     * @param int[] $principles
+     * @return string
+     */
+    private function build_system_prompt(array $principles): string {
+        $lines = [];
+        $lines[] = 'You are a careful code-quality reviewer for an introductory Python course.';
+        $lines[] = 'Assess the student code ONLY against the Code Quality Principles listed below.';
+        $lines[] = 'Do NOT comment on formatting, whitespace, line length, or syntax — those are handled separately.';
+        $lines[] = 'Be conservative: only report clear, specific, actionable issues. If the code is fine, return an empty list.';
+        $lines[] = 'Each issue must reference a real line number in the provided code and explain the problem in one or two sentences, addressed to the student.';
+        $lines[] = 'A problem statement may be provided. Use it ONLY as context for judging code quality '
+                 . '(e.g. whether names and structure fit the task, and whether implementation choices align with the problem). '
+                 . 'Do NOT assess correctness, test results, or compare against any reference solution.';
+        $lines[] = '';
+        $lines[] = 'Principles to assess:';
+
+        $all = cqp_mapper::PRINCIPLES;
+        foreach ($principles as $num) {
+            if (!isset($all[$num])) {
+                continue;
+            }
+            $p = $all[$num];
+            $lines[] = sprintf('- CQP %d (%s): %s Guidance: %s',
+                $num, $p['name'], $p['short'], $p['guideline']);
+        }
+
+        // Sharper boundaries for the principles the model most often confuses.
+        // Only emit guidance for principles actually being assessed.
+        $boundaries = [
+            2 => 'CQP 2 (Explanatory Language) covers ONLY clarity of meaning: undescriptive names, '
+               . 'missing or misleading comments, and magic numbers that should be named constants. '
+               . 'It is NOT about whether code is used.',
+            4 => 'CQP 4 (Used Content) covers elements that are introduced but not meaningfully used: '
+               . 'unused or dead variables, unused imports, unreachable code, and computations whose '
+               . 'results are never used. An unused variable is ALWAYS CQP 4, never CQP 2.',
+            6 => 'CQP 6 (Minimal Duplication) covers repeated or near-identical code that should be '
+               . 'consolidated, e.g. into a loop or a helper function.',
+            7 => 'CQP 7 (Modular Structure) covers grouping and scope: functions that do more than one '
+               . 'task, variables with unnecessarily broad scope, and poorly organised related code.',
+            8 => 'CQP 8 (Problem Alignment) covers data structures or algorithms that do not fit the '
+               . 'stated problem.',
+        ];
+        $boundarylines = [];
+        foreach ($principles as $num) {
+            if (isset($boundaries[$num])) {
+                $boundarylines[] = '- ' . $boundaries[$num];
+            }
+        }
+        if ($boundarylines) {
+            $lines[] = '';
+            $lines[] = 'Assign each finding to the SINGLE most appropriate principle. Boundaries:';
+            $lines = array_merge($lines, $boundarylines);
+            $lines[] = 'Do not relabel an issue just to make it fit an assessed principle. If an issue '
+                     . 'does not clearly belong to one of the principles above, omit it.';
+        }
+
+        $lines[] = '';
+        $lines[] = 'Respond with a single JSON object of this exact form:';
+        $lines[] = '{"findings": [{"cqp": <principle number>, "line": <1-based line number>, '
+                 . '"title": "<short label>", "message": "<explanation for the student>"}]}';
+        $lines[] = 'The "cqp" value must be one of: ' . implode(', ', $principles) . '.';
+        $lines[] = 'Return {"findings": []} if there are no issues.';
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Call the chat completions API and return the raw assistant content string.
+     *
+     * @param string $code
+     * @param int[]  $principles
+     * @param string $problemtext Plain-text problem statement for context (may be empty).
+     * @return string|null Assistant message content, or null on failure.
+     */
+    private function call_api(string $code, array $principles, string $problemtext = ''): ?string {
+        global $CFG;
+        require_once($CFG->libdir . '/filelib.php');
+
+        // Number the lines so the model can reference them reliably.
+        $numbered = '';
+        foreach (explode("\n", $code) as $i => $line) {
+            $numbered .= ($i + 1) . ': ' . $line . "\n";
+        }
+
+        $usercontent = '';
+        if ($problemtext !== '') {
+            $usercontent .= "Problem statement (the task the student was asked to solve):\n\n"
+                          . $problemtext . "\n\n";
+        }
+        $usercontent .= "Student code (with line numbers):\n\n" . $numbered;
+
+        $payload = [
+            'model'           => $this->model,
+            'temperature'     => $this->temperature,
+            'response_format' => ['type' => 'json_object'],
+            'messages'        => [
+                ['role' => 'system', 'content' => $this->build_system_prompt($principles)],
+                ['role' => 'user', 'content' => $usercontent],
+            ],
+        ];
+
+        $curl = new \curl();
+        $curl->setHeader('Authorization: Bearer ' . $this->apikey);
+        $curl->setHeader('Content-Type: application/json');
+
+        $response = $curl->post(
+            $this->baseurl . '/chat/completions',
+            json_encode($payload),
+            [
+                'CURLOPT_TIMEOUT'        => $this->timeout,
+                'CURLOPT_CONNECTTIMEOUT' => min(10, $this->timeout),
+                'CURLOPT_RETURNTRANSFER' => true,
+            ]
+        );
+
+        $info = $curl->get_info();
+        $httpcode = (int)($info['http_code'] ?? 0);
+        if ($curl->get_errno() || $httpcode < 200 || $httpcode >= 300) {
+            debugging('CQP AI API HTTP ' . $httpcode . ': ' . substr((string)$response, 0, 500),
+                DEBUG_DEVELOPER);
+            return null;
+        }
+
+        $decoded = json_decode($response, true);
+        $content = $decoded['choices'][0]['message']['content'] ?? null;
+        return is_string($content) ? $content : null;
+    }
+
+    /**
+     * Deterministic correction for the principle assignment the model most
+     * often gets wrong: unused/dead content belongs to CQP 4 (Used Content),
+     * which the model sometimes files under CQP 2 (naming/clarity).
+     *
+     * Conservative — only moves a finding TO CQP 4 when its text clearly signals
+     * unused/dead/unreachable content.
+     *
+     * @param int $num The model-assigned principle number.
+     * @param string $text Finding title + message.
+     * @return int Corrected principle number.
+     */
+    private static function reclassify(int $num, string $text): int {
+        $t = \core_text::strtolower($text);
+        if (preg_match('/\b(unused|never used|not used|defined but never|dead code|unreachable)\b/', $t)) {
+            return 4;
+        }
+        return $num;
+    }
+
+    /**
+     * Parse the model's JSON content into the standard linter payload.
+     *
+     * @param string $content Assistant JSON content.
+     * @param int[]  $allowed Allowed principle numbers.
+     * @return array
+     */
+    private function build_payload(string $content, array $allowed): array {
+        $empty = ['success' => false, 'total_issues' => 0, 'messages' => [], 'principles' => []];
+
+        $data = json_decode($content, true);
+        if (!is_array($data) || !isset($data['findings']) || !is_array($data['findings'])) {
+            return array_merge($empty, ['error' => 'Could not parse AI response.']);
+        }
+
+        $allowedset = array_flip($allowed);
+        $allprinciples = cqp_mapper::PRINCIPLES;
+        $messages = [];
+
+        foreach ($data['findings'] as $finding) {
+            if (!is_array($finding)) {
+                continue;
+            }
+            $num = (int)($finding['cqp'] ?? 0);
+            $message = trim((string)($finding['message'] ?? ''));
+            if ($message === '') {
+                continue;
+            }
+            // Backstop the model's most common misclassification: unused/dead
+            // content is CQP 4, not CQP 2. Reclassify before the allowed-set
+            // filter, so it is correctly dropped if CQP 4 is not assessed here.
+            $num = self::reclassify($num, trim((string)($finding['title'] ?? '')) . ' ' . $message);
+            if (!isset($allowedset[$num]) || !isset($allprinciples[$num])) {
+                continue;
+            }
+            $pdata = $allprinciples[$num];
+            $messages[] = [
+                'line'          => max(0, (int)($finding['line'] ?? 0)),
+                'type'          => 'ai',
+                'code'          => 'AI',
+                'symbol'        => 'ai-cqp' . $num,
+                'title'         => trim((string)($finding['title'] ?? '')),
+                'message'       => $message,
+                'cqp_number'    => $num,
+                'cqp_name'      => $pdata['name'],
+                'cqp_guideline' => $pdata['guideline'],
+                'source'        => 'ai',
+            ];
+        }
+
+        // Group by principle, mirroring the static linter's principles[] shape.
+        $bynum = [];
+        foreach ($messages as $m) {
+            $bynum[$m['cqp_number']][] = $m;
+        }
+        ksort($bynum);
+
+        $principlesout = [];
+        foreach ($bynum as $num => $msgs) {
+            $pdata = $allprinciples[$num];
+            $principlesout[] = [
+                'number'    => $num,
+                'name'      => $pdata['name'],
+                'short'     => $pdata['short'],
+                'guideline' => $pdata['guideline'],
+                'count'     => count($msgs),
+                'messages'  => $msgs,
+            ];
+        }
+
+        return [
+            'success'      => true,
+            'total_issues' => count($messages),
+            'messages'     => $messages,
+            'principles'   => $principlesout,
+        ];
+    }
+}

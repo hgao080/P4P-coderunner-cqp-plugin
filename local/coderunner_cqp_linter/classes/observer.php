@@ -163,6 +163,84 @@ class observer {
             $record->timecreated = $now;
 
             $DB->insert_record('local_crcqp_lint_event', $record);
+
+            // Optional AI analysis on submission, recorded as a separate event.
+            self::maybe_record_ai_event($qa, $question, $attemptobj, $attemptid, $slot, $now);
         }
+    }
+
+    /**
+     * Run AI analysis on a submitted attempt and record it as an 'ai' research
+     * event, when AI is enabled site-wide for submissions and for the question.
+     *
+     * @param \question_attempt $qa
+     * @param object $question
+     * @param object $attemptobj
+     * @param int $attemptid
+     * @param int $slot
+     * @param int $now
+     */
+    private static function maybe_record_ai_event($qa, $question, $attemptobj, int $attemptid, int $slot, int $now): void {
+        global $DB;
+
+        if (!\local_coderunner_cqp_linter\tools\ai\analyzer::runs_on('submit')
+                || !question_helper::is_ai_enabled($question->id)) {
+            return;
+        }
+
+        $code = question_helper::get_student_code($qa);
+        if ($code === null) {
+            return;
+        }
+
+        try {
+            $analyzer = new \local_coderunner_cqp_linter\tools\ai\analyzer();
+            $principles  = question_helper::get_ai_principles((int)$question->id);
+            $problemtext = question_helper::get_problem_text((int)$question->id);
+            $airesult = $analyzer->analyze($code, $principles, $problemtext);
+        } catch (\Throwable $e) {
+            debugging('CQP AI observer error: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            return;
+        }
+
+        if (empty($airesult['success'])) {
+            return;
+        }
+
+        $record              = new \stdClass();
+        $record->userid      = (int)$attemptobj->userid;
+        $record->questionid  = (int)$question->id;
+        $record->attemptid   = (int)$attemptid;
+        $record->slot        = (int)$slot;
+        $record->issuecount  = (int)$airesult['total_issues'];
+        $record->resultsjson = self::build_ai_results_json($airesult);
+        $record->eventtype   = 'ai';
+        $record->timecreated = $now;
+
+        $DB->insert_record('local_crcqp_lint_event', $record);
+    }
+
+    /**
+     * Build resultsjson for an AI payload, matching the principles+violations
+     * shape used elsewhere so report.php renders it uniformly.
+     *
+     * @param array $airesult Payload from analyzer::analyze().
+     * @return string JSON.
+     */
+    private static function build_ai_results_json(array $airesult): string {
+        $principles = [];
+        foreach ($airesult['principles'] as $p) {
+            $principles[] = ['n' => $p['number'], 'name' => $p['name'], 'count' => $p['count']];
+        }
+        $violations = [];
+        foreach ($airesult['messages'] as $m) {
+            $violations[] = [
+                'code'   => 'AI',
+                'symbol' => $m['symbol'] ?? ('ai-cqp' . $m['cqp_number']),
+                'line'   => (int)($m['line'] ?? 0),
+                'cqp'    => (int)$m['cqp_number'],
+            ];
+        }
+        return json_encode(['principles' => $principles, 'violations' => $violations]);
     }
 }

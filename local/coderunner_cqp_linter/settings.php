@@ -94,6 +94,79 @@ if ($hassiteconfig) {
     ));
 
 
+    // ── AI analysis (experimental) ───────────────────────────────────────────
+    $settings->add(new admin_setting_heading(
+        'local_coderunner_cqp_linter/ai_heading',
+        get_string('ai_heading', 'local_coderunner_cqp_linter'),
+        get_string('ai_heading_desc', 'local_coderunner_cqp_linter')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'local_coderunner_cqp_linter/ai_enabled',
+        get_string('ai_enabled', 'local_coderunner_cqp_linter'),
+        get_string('ai_enabled_desc', 'local_coderunner_cqp_linter'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configpasswordunmask(
+        'local_coderunner_cqp_linter/ai_api_key',
+        get_string('ai_api_key', 'local_coderunner_cqp_linter'),
+        get_string('ai_api_key_desc', 'local_coderunner_cqp_linter'),
+        ''
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_model',
+        get_string('ai_model', 'local_coderunner_cqp_linter'),
+        get_string('ai_model_desc', 'local_coderunner_cqp_linter'),
+        'gpt-4o-mini',
+        PARAM_TEXT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_base_url',
+        get_string('ai_base_url', 'local_coderunner_cqp_linter'),
+        get_string('ai_base_url_desc', 'local_coderunner_cqp_linter'),
+        'https://api.openai.com/v1',
+        PARAM_URL
+    ));
+
+    $settings->add(new admin_setting_configselect(
+        'local_coderunner_cqp_linter/ai_when',
+        get_string('ai_when', 'local_coderunner_cqp_linter'),
+        get_string('ai_when_desc', 'local_coderunner_cqp_linter'),
+        'button',
+        [
+            'button' => get_string('ai_when_button', 'local_coderunner_cqp_linter'),
+            'submit' => get_string('ai_when_submit', 'local_coderunner_cqp_linter'),
+            'both'   => get_string('ai_when_both', 'local_coderunner_cqp_linter'),
+        ]
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_timeout',
+        get_string('ai_timeout', 'local_coderunner_cqp_linter'),
+        get_string('ai_timeout_desc', 'local_coderunner_cqp_linter'),
+        '30',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_max_code_size',
+        get_string('ai_max_code_size', 'local_coderunner_cqp_linter'),
+        get_string('ai_max_code_size_desc', 'local_coderunner_cqp_linter'),
+        '8000',
+        PARAM_INT
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_temperature',
+        get_string('ai_temperature', 'local_coderunner_cqp_linter'),
+        get_string('ai_temperature_desc', 'local_coderunner_cqp_linter'),
+        '0.2',
+        PARAM_TEXT
+    ));
+
     $ADMIN->add('localplugins', $settings);
 
     // Research data export page — separate external page so it gets its own nav link.

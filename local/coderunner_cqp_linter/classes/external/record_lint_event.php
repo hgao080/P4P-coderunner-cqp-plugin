@@ -34,7 +34,7 @@ require_once($CFG->libdir . '/externallib.php');
 class record_lint_event extends \external_api {
 
     /** Allowed eventtype values from client JS. 'submit' is server-only. */
-    private const ALLOWED_EVENTTYPES = ['cqp', 'check', 'precheck'];
+    private const ALLOWED_EVENTTYPES = ['cqp', 'check', 'precheck', 'ai'];
 
     /**
      * Describe the input parameters.

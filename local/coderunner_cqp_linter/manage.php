@@ -59,13 +59,21 @@ $form = new \local_coderunner_cqp_linter\form\manage_form(null, [
 $PAGE->requires->js_init_code(\local_coderunner_cqp_linter\form\manage_form::get_checks_js(), true);
 
 if ($existing) {
-    $form->set_data([
+    $data = [
         'enabled'       => (int)$existing->enabled,
+        'ai_enabled'    => (int)($existing->ai_enabled ?? 0),
         'marks_enabled' => (int)($existing->marks_enabled ?? 0),
         'marks_weight'  => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
         'questionid'    => $questionid,
         'returnurl'     => $returnurl,
-    ]);
+    ];
+    // Pre-tick the AI principle checkboxes from the stored selection.
+    $selected = \local_coderunner_cqp_linter\question_helper::get_ai_principles($questionid);
+    foreach (\local_coderunner_cqp_linter\tools\ai\analyzer::SEMANTIC_PRINCIPLES as $pnum) {
+        $data[\local_coderunner_cqp_linter\form\manage_form::AI_PRINCIPLE_PREFIX . $pnum] =
+            in_array($pnum, $selected, true) ? 1 : 0;
+    }
+    $form->set_data($data);
 }
 
 $redirecturl = $returnurl !== '' ? new moodle_url($returnurl) : $PAGE->url;
@@ -87,6 +95,16 @@ if ($form->is_cancelled()) {
         }
     }
     $questdisable = implode(',', $uncheckedcodes);
+
+    // Collect the AI principle selection. Stored as a comma list; an empty
+    // string means "none" (distinct from NULL, which means "all / never set").
+    $aiprinciples = [];
+    foreach (\local_coderunner_cqp_linter\tools\ai\analyzer::SEMANTIC_PRINCIPLES as $pnum) {
+        if (!empty($data->{\local_coderunner_cqp_linter\form\manage_form::AI_PRINCIPLE_PREFIX . $pnum})) {
+            $aiprinciples[] = $pnum;
+        }
+    }
+    $aiprinciplesstr = implode(',', $aiprinciples);
 
     $marksenabledold = !empty($existing->marks_enabled);
     $marksenablednew = !empty($data->marks_enabled);
@@ -111,6 +129,8 @@ if ($form->is_cancelled()) {
     $record = (object)[
         'questionid'            => $questionid,
         'enabled'               => !empty($data->enabled) ? 1 : 0,
+        'ai_enabled'            => !empty($data->ai_enabled) ? 1 : 0,
+        'ai_principles'         => $aiprinciplesstr,
         'disabled_checks'       => $questdisable !== '' ? $questdisable : null,
         'min_severity'          => null,
         'marks_enabled'         => $marksenablednew ? 1 : 0,

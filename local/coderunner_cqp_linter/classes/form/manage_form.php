@@ -94,6 +94,9 @@ class manage_form extends \moodleform {
     /** Field-name prefix for the per-code checkboxes. */
     public const CHECK_PREFIX = 'cqpcheck_';
 
+    /** Field-name prefix for the per-question AI principle checkboxes. */
+    public const AI_PRINCIPLE_PREFIX = 'ai_principle_';
+
     /** Return the code map for use in manage.php. */
     public static function get_all_codes(): array {
         return self::ALL_CODES;
@@ -114,6 +117,31 @@ class manage_form extends \moodleform {
             get_string('manage_enabled', 'local_coderunner_cqp_linter'),
             get_string('manage_enabled_label', 'local_coderunner_cqp_linter'));
         $mform->setDefault('enabled', 0);
+
+        // AI analysis toggle sits directly beside the linting enable toggle so
+        // both per-question on/off switches are in one place.
+        $mform->addElement('advcheckbox', 'ai_enabled',
+            get_string('manage_ai_enabled', 'local_coderunner_cqp_linter'),
+            get_string('manage_ai_enabled_label', 'local_coderunner_cqp_linter'));
+        $mform->setDefault('ai_enabled', 0);
+        $mform->addHelpButton('ai_enabled', 'manage_ai_enabled', 'local_coderunner_cqp_linter');
+
+        // Which CQP principles the AI assesses — chosen per question. Disabled
+        // until AI analysis is ticked for this question.
+        $first = true;
+        foreach (\local_coderunner_cqp_linter\tools\ai\analyzer::SEMANTIC_PRINCIPLES as $pnum) {
+            $pname = $principles[$pnum]['name'] ?? ('CQP ' . $pnum);
+            $field = self::AI_PRINCIPLE_PREFIX . $pnum;
+            $mform->addElement('advcheckbox', $field,
+                $first ? get_string('manage_ai_principles', 'local_coderunner_cqp_linter') : '',
+                'CQP ' . (int)$pnum . ': ' . $pname);
+            $mform->setDefault($field, 1);
+            $mform->disabledIf($field, 'ai_enabled', 'notchecked');
+            if ($first) {
+                $mform->addHelpButton($field, 'manage_ai_principles', 'local_coderunner_cqp_linter');
+                $first = false;
+            }
+        }
 
         $mform->addElement('header', 'checks_header',
             get_string('manage_checks_header', 'local_coderunner_cqp_linter'));
