@@ -33,7 +33,15 @@ $question = $DB->get_record('question', ['id' => $questionid], '*', MUST_EXIST);
 $context  = \local_coderunner_cqp_linter\question_helper::get_question_context($questionid);
 require_capability('local/coderunner_cqp_linter:configure', $context);
 
-$PAGE->set_context($context);
+// A module-level context causes $OUTPUT->header() to trigger navigation's
+// load_module_settings(), which calls $PAGE->set_cm() with a course mismatch
+// (the page course defaults to site) and throws a coding_exception. The manage
+// page doesn't need to be scoped inside a module, so walk up to the course
+// context when the question lives in a module-level question bank.
+$pagecontext = ($context->contextlevel === CONTEXT_MODULE)
+    ? $context->get_parent_context()
+    : $context;
+$PAGE->set_context($pagecontext);
 $PAGE->set_url(new moodle_url('/local/coderunner_cqp_linter/manage.php', [
     'questionid' => $questionid,
 ]));
