@@ -17,7 +17,6 @@ Custom codes (W90xx range):
     W9002  avoidable-backslash-in-string       (Simple Constructs)
     W9003  inconsistent-quote-style            (Consistent Code)
     W9004  inconsistent-operator-line-break    (Consistent Code)
-    W9005  constant-in-function-scope          (Modular Structure)
     W9006  ambiguous-variable-name             (Explanatory Language)
     W9007  block-comment-wrong-indent          (Clear Presentation)
 """
@@ -67,12 +66,6 @@ def run_custom_checks(source_code, codes):
         for lineno, col, code in _check_operator_linebreak(source_code):
             lines.append(
                 f'source.py:{lineno}:{col}: {code} inconsistent-operator-line-break'
-            )
-
-    if 'W9005' in codes:
-        for lineno, col, code in _check_constant_scope(source_code):
-            lines.append(
-                f'source.py:{lineno}:{col}: {code} constant-in-function-scope'
             )
 
     if 'W9006' in codes:
@@ -383,44 +376,5 @@ def _check_block_comment_indent(source_code):
             if comment_indent != code_indent:
                 violations.append((lineno, comment_indent, 'W9007'))
             break
-
-    return violations
-
-
-# ---------------------------------------------------------------------------
-# W9005 — Module-level constant placement
-# ---------------------------------------------------------------------------
-
-def _check_constant_scope(source_code):
-    """
-    Flag any assignment inside a function body where the target name matches
-    the ALL_CAPS_WITH_UNDERSCORES convention (at least two characters, first
-    must be an uppercase letter), indicating the author intended a constant
-    but placed it in the wrong scope.
-
-    ast.walk visits every FunctionDef in the tree (including nested ones), so
-    checking only the direct body statements of each node avoids duplicates.
-    """
-    violations = []
-    constant_re = re.compile(r'^[A-Z][A-Z0-9_]+$')
-
-    try:
-        tree = ast.parse(source_code)
-    except SyntaxError:
-        return violations
-
-    for node in ast.walk(tree):
-        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            continue
-        for stmt in node.body:
-            if isinstance(stmt, ast.Assign):
-                for target in stmt.targets:
-                    if (isinstance(target, ast.Name) and
-                            constant_re.match(target.id)):
-                        violations.append((stmt.lineno, 0, 'W9005'))
-            elif isinstance(stmt, ast.AnnAssign):
-                if (isinstance(stmt.target, ast.Name) and
-                        constant_re.match(stmt.target.id)):
-                    violations.append((stmt.lineno, 0, 'W9005'))
 
     return violations

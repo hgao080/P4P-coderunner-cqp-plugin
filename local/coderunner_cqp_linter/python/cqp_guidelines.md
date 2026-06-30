@@ -33,6 +33,12 @@ Principles use the CQP naming (renamed from CSM).
 | 39 | Function | Use blank lines in functions, sparingly, to indicate logical sections. |
 | 42 | Parameter | Don't use spaces around the `=` sign when used to indicate a keyword argument, or when used to indicate a default value for an unannotated function parameter. |
 
+The linter additionally enforces no trailing whitespace at the end of a line
+(`trailing-whitespace`), drawn from the CQP principle (cqp.html). File-end
+conventions (a final newline, no trailing blank lines) are deliberately NOT
+checked: in a CodeRunner submission box they are an artifact of how the answer
+is entered rather than a code-quality choice the student made.
+
 ---
 
 ## 2. Explanatory Language
@@ -76,6 +82,13 @@ Principles use the CQP naming (renamed from CSM).
 |----|---------------|-----------|
 | —  | —             | *(No CS1-level guidelines from PEP 8 map to this principle.)* |
 
+PEP 8 itself has nothing to say here, but the CQP principle (cqp.html) does:
+all constructs should be needed, every line should be executable, and code
+that runs without affecting behaviour should be removed. These are basic and
+statically checkable, so the **linter** enforces them (rather than the AI):
+unused imports, unused variables, unused arguments, unreachable code, pointless
+statements, and unnecessary `pass`.
+
 ---
 
 ## 5. Simple Constructs
@@ -104,6 +117,12 @@ Principles use the CQP naming (renamed from CSM).
 | ID | Teaching Topic | Guideline |
 |----|---------------|-----------|
 | 27 | Constant | Constants are usually defined on a module level. |
+
+Modular Structure is out of scope for an introductory course — CS1 lab exercises
+are small enough that grouping and scope concerns carry little weight — so this
+principle is no longer assessed by either the linter or the AI. Guideline 27 was
+previously enforced by the `constant-in-function-scope` (W9005) check, which has
+been removed.
 
 ---
 

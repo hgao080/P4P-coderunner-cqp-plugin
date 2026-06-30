@@ -38,6 +38,7 @@ class manage_form extends \moodleform {
             'C0301' => 'line-too-long',
             'C0321' => 'multiple-statements',
             'W0311' => 'bad-indentation',
+            'C0303' => 'trailing-whitespace',
             'W191'  => 'indentation-contains-tabs',
             'E201'  => 'whitespace-after-bracket',
             'E202'  => 'whitespace-before-bracket',
@@ -81,14 +82,22 @@ class manage_form extends \moodleform {
             'W9003' => 'inconsistent-quote-style',
             'W9004' => 'inconsistent-operator-line-break',
         ],
+        4 => [
+            'W0611' => 'unused-import',
+            'W0612' => 'unused-variable',
+            'W0613' => 'unused-argument',
+            'W0101' => 'unreachable',
+            'W0104' => 'pointless-statement',
+            'W0107' => 'unnecessary-pass',
+        ],
         5 => [
             'C0113' => 'unnecessary-negation',
             'C0121' => 'singleton-comparison',
             'W9002' => 'avoidable-backslash-in-string',
         ],
-        7 => [
-            'W9005' => 'constant-in-function-scope',
-        ],
+        // CQP 6 (Minimal Duplication), 7 (Modular Structure), and 8 (Problem
+        // Alignment) have no statically enforced checks for an introductory
+        // course, so they are intentionally absent here.
     ];
 
     /** Field-name prefix for the per-code checkboxes. */

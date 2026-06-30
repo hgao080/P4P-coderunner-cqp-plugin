@@ -85,13 +85,11 @@ class cqp_mapper {
         'trailing-whitespace' => 1,
         'docstring-closing-quote-placement' => 1,
         'block-comment-wrong-indent' => 1,
-        'missing-final-newline' => 1,
         'mixed-indentation' => 1,
         'bad-indentation' => 1,
         'bad-whitespace' => 1,
         'multiple-statements' => 1,
         'superfluous-parens' => 1,
-        'trailing-newlines' => 1,
         'unexpected-line-ending-format' => 1,
         'mixed-line-endings' => 1,
 
@@ -173,7 +171,6 @@ class cqp_mapper {
         'duplicate-code' => 6,
 
         // CQP 7: Modular Structure — function size, arguments, scope.
-        'constant-in-function-scope' => 7,
         'too-many-arguments' => 7,
         'too-many-locals' => 7,
         'too-many-lines' => 7,

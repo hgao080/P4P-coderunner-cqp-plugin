@@ -55,7 +55,6 @@ CUSTOM_CODES = frozenset({
     'W9002',   # avoidable-backslash-in-string
     'W9003',   # inconsistent-quote-style
     'W9004',   # inconsistent-operator-line-break
-    'W9005',   # constant-in-function-scope
     'W9006',   # ambiguous-variable-name
     'W9007',   # block-comment-wrong-indent
 })
@@ -110,6 +109,18 @@ CLEAR_PRESENTATION = {
         "incorrect indentation misleads the reader about which block a line "
         "belongs to."
     ),
+    'C0303': (
+        'trailing-whitespace',
+        "There is unnecessary whitespace at the end of this line. Trailing "
+        "spaces and tabs are invisible while editing but show up as spurious "
+        "changes in version control and serve no purpose. Remove any "
+        "whitespace after the last visible character on the line."
+    ),
+    # NOTE: C0304 (missing-final-newline) and C0305 (trailing-newlines) are
+    # intentionally NOT included. Whether a submission ends with a final
+    # newline or some trailing blank lines is an artifact of the CodeRunner
+    # submission box, not a code-quality decision the student made — flagging
+    # it would be noise.
     # --- pycodestyle codes ---
 
     'W191': (
@@ -427,9 +438,51 @@ CONSISTENT_CODE = {
 #               effort.
 # ---------------------------------------------------------------------------
 USED_CONTENT = {
-    # No CS1 primer guidelines (Kirk et al., Tables 5 & 6) map to this
-    # principle. Codes that were here have been removed to keep mappings
-    # consistent with the documented guidelines.
+    # The CS1 PEP 8 primer (Kirk et al., Tables 5 & 6) lists no guidelines for
+    # this principle, but the CQP principle itself (cqp.html) does: all
+    # constructs should be needed, every line should be executable, and code
+    # with no effect should be removed. These are basic, unambiguous, and
+    # statically checkable — ideal for an introductory course — so they are
+    # enforced by the linter rather than the AI.
+    'W0611': (
+        'unused-import',
+        "This module is imported but never used. An unused import adds a "
+        "dependency the reader has to account for while contributing nothing "
+        "to the program. Remove imports you do not use."
+    ),
+    'W0612': (
+        'unused-variable',
+        "This variable is assigned a value but never used. An unused variable "
+        "suggests to the reader that it matters somewhere, sending them "
+        "searching for a use that does not exist. Remove it, or use it if it "
+        "was meant to be used."
+    ),
+    'W0613': (
+        'unused-argument',
+        "This function parameter is never used in the function body. An unused "
+        "parameter implies the function needs information it never actually "
+        "uses. Remove it, or use it if it was meant to be used."
+    ),
+    'W0101': (
+        'unreachable',
+        "This code can never run because it follows a return, break, continue, "
+        "or raise. Code that cannot execute misleads the reader about what the "
+        "program does. Remove it, or restructure the surrounding logic so it "
+        "can be reached."
+    ),
+    'W0104': (
+        'pointless-statement',
+        "This statement has no effect — its result is computed and then thrown "
+        "away. A line that does nothing usually means something was left "
+        "unfinished, or a value was meant to be stored or returned. Remove it "
+        "or use its result."
+    ),
+    'W0107': (
+        'unnecessary-pass',
+        "This 'pass' statement is unnecessary because the block already "
+        "contains other code. 'pass' is only needed as a placeholder for an "
+        "otherwise empty block — remove it where it serves no purpose."
+    ),
 }
 
 # ---------------------------------------------------------------------------
@@ -488,13 +541,11 @@ MINIMAL_DUPLICATION = {
 #               independently.
 # ---------------------------------------------------------------------------
 MODULAR_STRUCTURE = {
-    'W9005': (
-        'constant-in-function-scope',
-        "This name uses ALL_CAPS_WITH_UNDERSCORES, which signals a constant, "
-        "but it is defined inside a function rather than at module level. "
-        "Constants are usually defined at the top of the file so they are "
-        "easy to find and can be shared across functions."
-    ),
+    # Modular Structure is out of scope for an introductory course: CS1 lab
+    # exercises are small, so grouping/scope concerns (e.g. defining constants
+    # at module level vs. inside a function) carry little weight. Neither the
+    # linter nor the AI assesses this principle. The previous
+    # constant-in-function-scope (W9005) custom check has been removed.
 }
 
 # ---------------------------------------------------------------------------

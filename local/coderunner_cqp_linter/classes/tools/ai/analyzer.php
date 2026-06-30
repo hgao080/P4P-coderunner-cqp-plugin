@@ -20,8 +20,8 @@ use local_coderunner_cqp_linter\cqp_mapper;
 
 /**
  * Assesses student code against the "semantic" Code Quality Principles that a
- * static linter cannot check well (naming, comment quality, duplication,
- * modular structure, problem alignment) using an OpenAI-compatible chat model.
+ * static linter cannot check well (naming and comment quality, duplication,
+ * and problem alignment) using an OpenAI-compatible chat model.
  *
  * Disabled unless an administrator enables it and supplies an API key. All
  * failures are returned as a structured error; this class never throws so a
@@ -43,10 +43,13 @@ class analyzer {
 
     /**
      * CQP principles the AI can assess — the "semantic" ones a static linter
-     * cannot check well. The static linter handles principles 1, 3, and 5.
+     * cannot check well. The static linter handles principles 1, 3, 4, and 5.
+     * Used Content (4) is now covered by the linter (unused/unreachable/dead
+     * code), and Modular Structure (7) is out of scope for an introductory
+     * course, so neither is assessed by the AI.
      * @var int[]
      */
-    public const SEMANTIC_PRINCIPLES = [2, 4, 6, 7, 8];
+    public const SEMANTIC_PRINCIPLES = [2, 6, 8];
 
     /** @var int Max characters of question text to send as context. */
     public const MAX_PROBLEM_TEXT = 2000;
@@ -204,14 +207,10 @@ class analyzer {
         $boundaries = [
             2 => 'CQP 2 (Explanatory Language) covers ONLY clarity of meaning: undescriptive names, '
                . 'missing or misleading comments, and magic numbers that should be named constants. '
-               . 'It is NOT about whether code is used.',
-            4 => 'CQP 4 (Used Content) covers elements that are introduced but not meaningfully used: '
-               . 'unused or dead variables, unused imports, unreachable code, and computations whose '
-               . 'results are never used. An unused variable is ALWAYS CQP 4, never CQP 2.',
+               . 'It is NOT about whether code is used — unused or dead code is handled separately by '
+               . 'the linter, so do not report it.',
             6 => 'CQP 6 (Minimal Duplication) covers repeated or near-identical code that should be '
                . 'consolidated, e.g. into a loop or a helper function.',
-            7 => 'CQP 7 (Modular Structure) covers grouping and scope: functions that do more than one '
-               . 'task, variables with unnecessarily broad scope, and poorly organised related code.',
             8 => 'CQP 8 (Problem Alignment) covers data structures or algorithms that do not fit the '
                . 'stated problem.',
         ];
@@ -305,6 +304,11 @@ class analyzer {
      * Deterministic correction for the principle assignment the model most
      * often gets wrong: unused/dead content belongs to CQP 4 (Used Content),
      * which the model sometimes files under CQP 2 (naming/clarity).
+     *
+     * CQP 4 is now enforced by the linter and is not in the AI's assessed set,
+     * so routing a finding to 4 makes the allowed-set filter in build_payload
+     * drop it — this stops the model from re-reporting unused/dead code (often
+     * mislabelled as CQP 2) on top of the linter.
      *
      * Conservative — only moves a finding TO CQP 4 when its text clearly signals
      * unused/dead/unreachable content.

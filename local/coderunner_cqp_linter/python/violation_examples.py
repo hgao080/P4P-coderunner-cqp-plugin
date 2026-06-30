@@ -11,11 +11,19 @@ trigger W191. E101 requires a file that mixes both within the same block,
 which Python 3 rejects outright.
 """
 
+# ── W0611: unused-import ──────────────────────────────────────────────────────
+# 'math' is imported but never referenced anywhere in this file.
+import math
+
 # ── W9003: inconsistent-quote-style ──────────────────────────────────────────
 # Both quote styles used throughout this file (see SINGLE_QUOTED / DOUBLE_QUOTED
 # and strings elsewhere).
 SINGLE_QUOTED = 'hello'
 DOUBLE_QUOTED = "world"
+
+# ── C0303: trailing-whitespace ────────────────────────────────────────────────
+# The assignment line below ends with spaces after the value.
+trailing_ws_demo = 1   
 
 # ── C0103: invalid-name ───────────────────────────────────────────────────────
 # PascalCase at module level — should be ALL_CAPS_WITH_UNDERSCORES (constant)
@@ -63,7 +71,6 @@ def badly_named_Function(x = 1, y: int=2):
   very_long_variable_name_exceeding_seventy_nine_chars = total + val + other  # C0301
   combined = (a + \
               b)                      # E502: backslash redundant inside parentheses
-  MAX_RETRIES = 3                     # W9005: ALL_CAPS constant inside a function
 
   #missing space after hash           # E265: block comment must start with '# '
 # comment at wrong indentation level  # W9007: block comment not indented to match code
@@ -147,6 +154,24 @@ a + b
     if (a == 1
         and b == 2):
         pass
+
+
+# ── CQP 4: Used Content — W0613, W0612, W0104, W0101 ─────────────────────────
+def used_content_examples(scale):       # W0613: 'scale' parameter is never used
+    """Demonstrate Used Content violations (CQP 4)."""
+    result = 0
+    spare = 42                          # W0612: 'spare' assigned but never used
+    result                              # W0104: pointless statement — value discarded
+    return result
+    result = result + 1                 # W0101: unreachable code after the return
+
+
+# ── W0107: unnecessary-pass ──────────────────────────────────────────────────
+def unnecessary_pass_example(values):
+    """The pass below is redundant — the loop body already has a statement."""
+    for item in values:
+        print(item)
+        pass                            # W0107: unnecessary pass; block isn't empty
 
 # ── E305: expected-two-blank-lines after last definition ─────────────────────
 # Only one blank line above — two required before module-level code.
