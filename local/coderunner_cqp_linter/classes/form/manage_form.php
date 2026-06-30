@@ -29,86 +29,41 @@ require_once($CFG->libdir . '/formslib.php');
  */
 class manage_form extends \moodleform {
 
-    /**
-     * All CQP-active check codes grouped by principle number.
-     * Must match the codes defined in python/cqp_principles.py.
-     */
-    private const ALL_CODES = [
-        1 => [
-            'C0301' => 'line-too-long',
-            'C0321' => 'multiple-statements',
-            'W0311' => 'bad-indentation',
-            'C0303' => 'trailing-whitespace',
-            'W191'  => 'indentation-contains-tabs',
-            'E201'  => 'whitespace-after-bracket',
-            'E202'  => 'whitespace-before-bracket',
-            'E203'  => 'whitespace-before-punctuation',
-            'E211'  => 'whitespace-before-call',
-            'E221'  => 'multiple-spaces-before-operator',
-            'E222'  => 'multiple-spaces-after-operator',
-            'E225'  => 'missing-whitespace-around-operator',
-            'E231'  => 'missing-whitespace-after-separator',
-            'E241'  => 'multiple-spaces-after-separator',
-            'E251'  => 'unexpected-spaces-around-keyword-equals',
-            'E252'  => 'missing-whitespace-around-parameter-default',
-            'E261'  => 'at-least-two-spaces-before-inline-comment',
-            'E262'  => 'inline-comment-should-start-with-hash-space',
-            'E265'  => 'block-comment-should-start-with-hash-space',
-            'E302'  => 'expected-two-blank-lines',
-            'E303'  => 'too-many-blank-lines',
-            'E305'  => 'expected-two-blank-lines-after-definition',
-            'E306'  => 'expected-one-blank-line-before-nested-definition',
-            'E502'  => 'redundant-backslash',
-            'E121'  => 'continuation-line-under-indented',
-            'E122'  => 'continuation-line-missing-indentation',
-            'E123'  => 'closing-bracket-does-not-match-indentation',
-            'E124'  => 'closing-bracket-does-not-match-visual-indentation',
-            'E125'  => 'continuation-line-same-indent-as-next-logical-line',
-            'E126'  => 'continuation-line-over-indented-for-hanging-indent',
-            'E127'  => 'continuation-line-over-indented-for-visual-indent',
-            'E128'  => 'continuation-line-under-indented-for-visual-indent',
-            'E129'  => 'visually-indented-line-same-indent-as-next-logical-line',
-            'W9001' => 'docstring-closing-quote-placement',
-            'W9007' => 'block-comment-wrong-indent',
-        ],
-        2 => [
-            'C0103' => 'invalid-name',
-            'C0104' => 'disallowed-name',
-            'W0622' => 'redefined-builtin',
-            'W9006' => 'ambiguous-variable-name',
-        ],
-        3 => [
-            'R1710' => 'inconsistent-return-statements',
-            'W9003' => 'inconsistent-quote-style',
-            'W9004' => 'inconsistent-operator-line-break',
-        ],
-        4 => [
-            'W0611' => 'unused-import',
-            'W0612' => 'unused-variable',
-            'W0613' => 'unused-argument',
-            'W0101' => 'unreachable',
-            'W0104' => 'pointless-statement',
-            'W0107' => 'unnecessary-pass',
-        ],
-        5 => [
-            'C0113' => 'unnecessary-negation',
-            'C0121' => 'singleton-comparison',
-            'W9002' => 'avoidable-backslash-in-string',
-        ],
-        // CQP 6 (Minimal Duplication), 7 (Modular Structure), and 8 (Problem
-        // Alignment) have no statically enforced checks for an introductory
-        // course, so they are intentionally absent here.
-    ];
-
     /** Field-name prefix for the per-code checkboxes. */
     public const CHECK_PREFIX = 'cqpcheck_';
 
     /** Field-name prefix for the per-question AI principle checkboxes. */
     public const AI_PRINCIPLE_PREFIX = 'ai_principle_';
 
-    /** Return the code map for use in manage.php. */
+    /**
+     * Load cqp_codes.json once and return the decoded array.
+     *
+     * @return array Decoded JSON: {'codes': {code: {symbol, principle, type, explanation}}, 'aliases': {...}}
+     */
+    private static function load_codes_json(): array {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $path = dirname(__DIR__, 2) . '/python/cqp_codes.json';
+        $cache = json_decode(file_get_contents($path), true);
+        return $cache;
+    }
+
+    /**
+     * Return CQP-active codes grouped by principle number.
+     * Loaded from python/cqp_codes.json — single source of truth with cqp_principles.py.
+     *
+     * @return array{int: array{string: string}} principle_number => [code => symbol]
+     */
     public static function get_all_codes(): array {
-        return self::ALL_CODES;
+        $data = self::load_codes_json();
+        $grouped = [];
+        foreach ($data['codes'] as $code => $info) {
+            $grouped[(int)$info['principle']][$code] = $info['symbol'];
+        }
+        ksort($grouped);
+        return $grouped;
     }
 
     protected function definition() {
@@ -206,7 +161,7 @@ class manage_form extends \moodleform {
             s(get_string('manage_checks_desc', 'local_coderunner_cqp_linter')) .
             '</p>';
 
-        foreach (self::ALL_CODES as $pnum => $codes) {
+        foreach (self::get_all_codes() as $pnum => $codes) {
             $pname = $principles[$pnum]['name'] ?? ('CQP ' . $pnum);
             $groupid = 'cqpgroup_' . $pnum;
             $html .= '<div class="card mb-2">';

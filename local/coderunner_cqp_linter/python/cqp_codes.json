@@ -1,0 +1,313 @@
+{
+  "codes": {
+    "C0301": {
+      "symbol": "line-too-long",
+      "principle": 1,
+      "type": "pylint",
+      "explanation": "This line exceeds the recommended length of 79 characters. Long lines force the reader to scroll horizontally and make it harder to see the structure of the code at a glance."
+    },
+    "C0321": {
+      "symbol": "multiple-statements",
+      "principle": 1,
+      "type": "pylint",
+      "explanation": "Multiple statements appear on one line. Placing each statement on its own line makes the structure of the code easier to follow."
+    },
+    "W0311": {
+      "symbol": "bad-indentation",
+      "principle": 1,
+      "type": "pylint",
+      "explanation": "The indentation on this line does not match the expected level. Consistent indentation is how Python signals code structure — incorrect indentation misleads the reader about which block a line belongs to."
+    },
+    "C0303": {
+      "symbol": "trailing-whitespace",
+      "principle": 1,
+      "type": "pylint",
+      "explanation": "There is unnecessary whitespace at the end of this line. Trailing spaces and tabs are invisible while editing but show up as spurious changes in version control and serve no purpose. Remove any whitespace after the last visible character on the line."
+    },
+    "W191": {
+      "symbol": "indentation-contains-tabs",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This line uses a tab character for indentation. PEP 8 requires spaces — specifically 4 spaces per level. Tabs render differently in different editors, making the code look inconsistent to different readers."
+    },
+    "E201": {
+      "symbol": "whitespace-after-bracket",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is a space immediately after an opening bracket. Extra whitespace inside brackets creates visual noise that draws the eye without adding information — it makes it harder to see where the bracket's content begins. Brackets should sit flush against their contents, for example: my_list[0] not my_list[ 0 ]."
+    },
+    "E202": {
+      "symbol": "whitespace-before-bracket",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is a space immediately before a closing bracket. Extra whitespace inside brackets creates visual noise and makes it harder to see where the bracket's content ends. Brackets should sit flush against their contents, for example: my_list[0] not my_list[ 0 ]."
+    },
+    "E203": {
+      "symbol": "whitespace-before-punctuation",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is a space before a comma, semicolon, or colon. Punctuation attaches to what comes before it, so a space in front makes the preceding token look detached from the punctuation that belongs to it. Write (a, b) not (a , b)."
+    },
+    "E211": {
+      "symbol": "whitespace-before-bracket",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is a space between this name and the opening bracket. Without the space, the bracket signals to the reader that the name is being called or indexed. Adding a space breaks that visual connection and makes the call or index look like a separate element. Write my_func() not my_func ()."
+    },
+    "E221": {
+      "symbol": "multiple-spaces-before-operator",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There are multiple spaces before this operator. Multiple spaces suggest intentional column alignment, implying a deliberate pattern — but when only this operator is padded, the reader will look for a pattern that is not there. Use a single space on each side of all operators."
+    },
+    "E222": {
+      "symbol": "multiple-spaces-after-operator",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There are multiple spaces after this operator. Extra whitespace after an operator creates uneven visual rhythm that slows reading and looks unintentional. Use a single space on each side of an operator."
+    },
+    "E225": {
+      "symbol": "missing-whitespace-around-operator",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is no space around this operator. Surrounding operators with a single space on each side makes expressions easier to read, for example: x = a + b not x=a+b."
+    },
+    "E231": {
+      "symbol": "missing-whitespace-after-separator",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is no space after this comma, semicolon, or colon. A space after a separator helps the reader distinguish the separate items, for example: (a, b, c) not (a,b,c)."
+    },
+    "E241": {
+      "symbol": "multiple-spaces-after-separator",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There are multiple spaces after this separator. A single space after a separator is the expected visual pattern — multiple spaces suggest intentional column alignment, but when that alignment does not continue consistently, it just looks like a typo. Use a single space after commas, colons, and semicolons."
+    },
+    "E251": {
+      "symbol": "unexpected-spaces-around-keyword-equals",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There are spaces around the '=' in a keyword argument or default value. In a regular assignment, spaces around '=' are expected — so adding them here makes keyword arguments look like assignment statements, blurring the distinction between the two. Write def f(x=1) and f(x=1), not def f(x = 1) and f(x = 1)."
+    },
+    "E252": {
+      "symbol": "missing-whitespace-around-parameter-default",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is no space around the '=' for an annotated parameter default. When a type annotation is present, the '=' sits between the annotation and the default value — without spaces, the three elements run together and become harder to distinguish from one another. Write def f(x: int = 1) not def f(x: int=1)."
+    },
+    "E261": {
+      "symbol": "at-least-two-spaces-before-inline-comment",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There is less than two spaces before this inline comment. Inline comments should be separated from the statement by at least two spaces so they are visually distinct from the code."
+    },
+    "E262": {
+      "symbol": "inline-comment-should-start-with-hash-space",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This inline comment does not start with '# ' (hash followed by a space). All comments should use this format so they are immediately recognisable as comments."
+    },
+    "E265": {
+      "symbol": "block-comment-should-start-with-hash-space",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This block comment does not start with '# ' (hash followed by a space). Block comments should use this format — the space separates the marker from the text and is a widely expected convention."
+    },
+    "E302": {
+      "symbol": "expected-two-blank-lines",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There should be two blank lines before this top-level function definition. The extra whitespace visually separates major sections of the file and makes the structure clear at a glance."
+    },
+    "E303": {
+      "symbol": "too-many-blank-lines",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There are too many consecutive blank lines here. Use one blank line to separate logical sections within a function, and two blank lines between top-level definitions. More than that adds unnecessary space."
+    },
+    "E305": {
+      "symbol": "expected-two-blank-lines-after-definition",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There should be two blank lines after the last top-level function definition before module-level code. This separation makes it clear where the definitions end and the main code begins."
+    },
+    "E306": {
+      "symbol": "expected-one-blank-line-before-nested-definition",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "There should be one blank line before this nested function definition. The blank line makes it visually distinct from the surrounding code."
+    },
+    "E502": {
+      "symbol": "redundant-backslash",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This backslash for line continuation is unnecessary because the line is already inside brackets. Remove the backslash and let the brackets handle the continuation — it is cleaner and less error-prone."
+    },
+    "E121": {
+      "symbol": "continuation-line-under-indented",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line is under-indented. Continuation lines should be indented further than the opening line to make it clear they are part of the same expression."
+    },
+    "E122": {
+      "symbol": "continuation-line-missing-indentation",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line is missing indentation. Align it with the opening delimiter or use a hanging indent so it is visually distinct from the next statement."
+    },
+    "E123": {
+      "symbol": "closing-bracket-does-not-match-indentation",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "The closing bracket does not match the indentation of the opening line. Consistent bracket placement makes it easy to find the end of a multiline construct at a glance — without it, the reader must scan the content rather than the structure to know where the expression ends. It should line up under the first non-whitespace character of the last item, or under the start of the line that begins the multiline construct."
+    },
+    "E124": {
+      "symbol": "closing-bracket-does-not-match-visual-indentation",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "The closing bracket does not match the visual indentation of the opening delimiter. A misaligned closing bracket makes it harder to find where the multiline expression ends — the reader cannot scan the left edge to find the matching bracket. Align the closing bracket with the opener."
+    },
+    "E125": {
+      "symbol": "continuation-line-with-same-indent-as-next-logical-line",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line has the same indentation as the next logical line. Add extra indentation so the continuation is visually distinct from the block body that follows."
+    },
+    "E126": {
+      "symbol": "continuation-line-over-indented-for-hanging-indent",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line is over-indented for a hanging indent. Over-indentation pushes the line deeper than expected, making it look like the start of a new nested block rather than a continuation of the expression above. Reduce the indentation to align with the expected level."
+    },
+    "E127": {
+      "symbol": "continuation-line-over-indented-for-visual-indent",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line is over-indented. Extra indentation makes the continuation look like it belongs to a deeper block, misleading the reader about where the current expression ends. Align it with the opening delimiter."
+    },
+    "E128": {
+      "symbol": "continuation-line-under-indented-for-visual-indent",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This continuation line is under-indented. Without enough indentation, the continuation looks like a new statement rather than part of the expression above, misleading the reader about where the expression ends. Align it with the opening delimiter."
+    },
+    "E129": {
+      "symbol": "visually-indented-line-with-same-indent-as-next-logical-line",
+      "principle": 1,
+      "type": "pycodestyle",
+      "explanation": "This visually indented continuation line has the same indentation as the next logical line. Add extra indentation to distinguish the continuation from the block body."
+    },
+    "W9001": {
+      "symbol": "docstring-closing-quote-placement",
+      "principle": 1,
+      "type": "custom",
+      "explanation": "The closing '\"\"\"' of this docstring is in the wrong position. Consistent docstring layout signals at a glance whether a docstring spans one line or many — a reader should not have to read the content to find out. For a one-line docstring, everything — opening quotes, text, and closing quotes — should be on a single line. For a multiline docstring, the closing '\"\"\"' should be on a line of its own, making it easy to see where the docstring ends."
+    },
+    "W9007": {
+      "symbol": "block-comment-wrong-indent",
+      "principle": 1,
+      "type": "custom",
+      "explanation": "This block comment is not indented to the same level as the code it applies to. A block comment should be indented to match the indentation of the code that follows it, so the structure of the code is visually clear."
+    },
+    "C0103": {
+      "symbol": "invalid-name",
+      "principle": 2,
+      "type": "pylint",
+      "explanation": "This name doesn't follow the expected naming convention. Names should communicate the purpose of a variable or function so a reader doesn't have to trace through the code to understand it. Use lowercase_with_underscores for variables and functions, and ALL_CAPS_WITH_UNDERSCORES for constants."
+    },
+    "C0104": {
+      "symbol": "disallowed-name",
+      "principle": 2,
+      "type": "pylint",
+      "explanation": "This name (e.g. 'foo', 'bar', 'x') is a placeholder that carries no meaning. Choose a name that describes what the element represents or stores."
+    },
+    "W9006": {
+      "symbol": "ambiguous-variable-name",
+      "principle": 2,
+      "type": "custom",
+      "explanation": "The names 'l' (lowercase el), 'O' (uppercase oh), and 'I' (uppercase eye) are easily confused with the digits 1, 0, and 1 respectively. Choose a more distinctive name that cannot be misread at a glance."
+    },
+    "W0622": {
+      "symbol": "redefined-builtin",
+      "principle": 2,
+      "type": "pylint",
+      "explanation": "This name shadows a Python built-in such as 'list', 'id', or 'type'. Using a built-in name as a variable or parameter hides the original meaning and can cause confusing errors elsewhere in the code. Choose a more specific name that describes what the value actually represents."
+    },
+    "R1710": {
+      "symbol": "inconsistent-return-statements",
+      "principle": 3,
+      "type": "pylint",
+      "explanation": "Some return statements in this function return a value and others return nothing. Either all return statements should return an expression, or none should. Where nothing is returned, write 'return None' explicitly to make the function's behaviour consistent and clear."
+    },
+    "W9003": {
+      "symbol": "inconsistent-quote-style",
+      "principle": 3,
+      "type": "custom",
+      "explanation": "This file uses both single-quoted and double-quoted strings without a clear reason. When both styles appear together, a reader will look for a pattern — trying to work out whether the choice means something — and find there is none. Pick one quote style and use it consistently throughout the file. The only exception is when a string contains the quote character itself — use the other style then to avoid backslash escapes."
+    },
+    "W9004": {
+      "symbol": "inconsistent-operator-line-break",
+      "principle": 3,
+      "type": "custom",
+      "explanation": "This file breaks long expressions both before and after binary operators in different places. A consistent style lets a reader know where to look for operators — either reliably at the end of each line or reliably at the start of the next. When the style varies, the reader cannot scan predictably and must re-read lines to find where each expression continues. Pick one style and apply it throughout the file."
+    },
+    "W0611": {
+      "symbol": "unused-import",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This module is imported but never used. An unused import adds a dependency the reader has to account for while contributing nothing to the program. Remove imports you do not use."
+    },
+    "W0612": {
+      "symbol": "unused-variable",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This variable is assigned a value but never used. An unused variable suggests to the reader that it matters somewhere, sending them searching for a use that does not exist. Remove it, or use it if it was meant to be used."
+    },
+    "W0613": {
+      "symbol": "unused-argument",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This function parameter is never used in the function body. An unused parameter implies the function needs information it never actually uses. Remove it, or use it if it was meant to be used."
+    },
+    "W0101": {
+      "symbol": "unreachable",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This code can never run because it follows a return, break, continue, or raise. Code that cannot execute misleads the reader about what the program does. Remove it, or restructure the surrounding logic so it can be reached."
+    },
+    "W0104": {
+      "symbol": "pointless-statement",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This statement has no effect — its result is computed and then thrown away. A line that does nothing usually means something was left unfinished, or a value was meant to be stored or returned. Remove it or use its result."
+    },
+    "W0107": {
+      "symbol": "unnecessary-pass",
+      "principle": 4,
+      "type": "pylint",
+      "explanation": "This 'pass' statement is unnecessary because the block already contains other code. 'pass' is only needed as a placeholder for an otherwise empty block — remove it where it serves no purpose."
+    },
+    "C0113": {
+      "symbol": "unnecessary-negation",
+      "principle": 5,
+      "type": "pylint",
+      "explanation": "This condition uses 'not ... is' instead of 'is not'. The 'is not' form is the simpler, more direct way to express this comparison and is easier to read correctly at a glance."
+    },
+    "C0121": {
+      "symbol": "singleton-comparison",
+      "principle": 5,
+      "type": "pylint",
+      "explanation": "This comparison against True, False, or None is more complex than necessary. Instead of 'if x == True', write 'if x'; instead of 'if x == False', write 'if not x'; instead of 'if x == None', write 'if x is None'. The simpler form is easier to read and is the Python idiom."
+    },
+    "W9002": {
+      "symbol": "avoidable-backslash-in-string",
+      "principle": 5,
+      "type": "custom",
+      "explanation": "This string uses a backslash to escape a quote character, but switching to the other quote style would eliminate the escape entirely. For example, 'it\\'s here' is clearer as \"it's here\". Avoiding unnecessary backslashes makes strings easier to read."
+    }
+  },
+  "aliases": {
+    "C0117": "C0113"
+  }
+}
