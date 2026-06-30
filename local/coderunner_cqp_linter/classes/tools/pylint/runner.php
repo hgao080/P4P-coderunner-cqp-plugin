@@ -100,7 +100,7 @@ class runner {
                 'CQP support files missing from plugin python/ directory.');
         }
 
-        $runnerscript = $this->build_runner_script($disable, $filecontents['cqp_principles.py'], $filecontents['cqp_custom_checkers.py'] ?? '');
+        $runnerscript = $this->build_runner_script($disable, $filecontents['cqp_principles.py'], $filecontents['cqp_custom_checkers.py'] ?? '', $filecontents['cqp_codes.json'] ?? '');
 
         $joberesult = $this->submit_to_jobe($runnerscript, $code);
         $executiontime = microtime(true) - $starttime;
@@ -173,9 +173,13 @@ class runner {
         $safedisable   = addslashes($disable);
         $principlesb64 = $filecontents['cqp_principles.py'] ?? '';
         $checkerb64    = $filecontents['cqp_custom_checkers.py'] ?? '';
+        $codesjsonb64  = $filecontents['cqp_codes.json'] ?? '';
 
         return <<<PYTHON
 import base64, io, json, os, re, sys, tempfile
+
+with open('cqp_codes.json', 'wb') as _f:
+    _f.write(base64.b64decode('$codesjsonb64'))
 
 with open('cqp_principles.py', 'wb') as _f:
     _f.write(base64.b64decode('$principlesb64'))
@@ -390,23 +394,22 @@ PYTHON;
     }
 
     /**
-     * Read cqp_principles.py from the plugin's python/ directory.
+     * Read Python support files from the plugin's python/ directory.
      *
-     * Only cqp_principles.py is needed — the button runner uses the pylint
-     * Python API directly rather than cqp_checker.py's subprocess approach.
-     *
-     * @return array|null ['cqp_principles.py' => base64string], or null if missing.
+     * @return array|null filename => base64string map, or null if any file is missing.
      */
     private function read_support_files(): ?array {
         $dir = dirname(__DIR__, 3) . '/python/';
         $principlespath = $dir . 'cqp_principles.py';
         $checkerpath    = $dir . 'cqp_custom_checkers.py';
-        if (!file_exists($principlespath) || !file_exists($checkerpath)) {
+        $jsonpath       = $dir . 'cqp_codes.json';
+        if (!file_exists($principlespath) || !file_exists($checkerpath) || !file_exists($jsonpath)) {
             return null;
         }
         return [
             'cqp_principles.py'      => base64_encode(file_get_contents($principlespath)),
             'cqp_custom_checkers.py' => base64_encode(file_get_contents($checkerpath)),
+            'cqp_codes.json'         => base64_encode(file_get_contents($jsonpath)),
         ];
     }
 
@@ -421,11 +424,14 @@ PYTHON;
      * @param string $principlesb64 Base64-encoded cqp_principles.py content.
      * @return string Python source code for the runner script.
      */
-    private function build_runner_script(string $disable, string $principlesb64, string $checkerb64): string {
+    private function build_runner_script(string $disable, string $principlesb64, string $checkerb64, string $codesjsonb64 = ''): string {
         $safedisable = addslashes($disable);
 
         return <<<PYTHON
 import base64, io, json, os, re, sys, tempfile
+
+with open('cqp_codes.json', 'wb') as _f:
+    _f.write(base64.b64decode('$codesjsonb64'))
 
 with open('cqp_principles.py', 'wb') as _f:
     _f.write(base64.b64decode('$principlesb64'))

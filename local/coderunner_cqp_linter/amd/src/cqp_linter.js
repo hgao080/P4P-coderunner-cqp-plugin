@@ -274,8 +274,18 @@ define(['core/ajax'], function(Ajax) {
 
     /**
      * Find a question container by slot number.
+     *
+     * @param {number}  slot          Quiz slot number.
+     * @param {boolean} allowFallback True only when exactly one slot is configured
+     *                                (qbank single-question preview). When multiple
+     *                                slots are configured, the fallback must be
+     *                                suppressed: in a sequential quiz the DOM only
+     *                                contains the current page's question, so the
+     *                                singleton fallback would return the wrong div
+     *                                for every off-page slot and attach buttons
+     *                                with the wrong questionid.
      */
-    function findQuestionDiv(slot) {
+    function findQuestionDiv(slot, allowFallback) {
         var selectors = [
             '#question-' + slot,
             '[id*="question-"][id$="-' + slot + '"]',
@@ -288,8 +298,10 @@ define(['core/ajax'], function(Ajax) {
             }
         }
         // Fallback for qbank preview pages where only one question is on the page.
-        var all = document.querySelectorAll('.que.coderunner');
-        if (all.length === 1) { return all[0]; }
+        if (allowFallback) {
+            var all = document.querySelectorAll('.que.coderunner');
+            if (all.length === 1) { return all[0]; }
+        }
         return null;
     }
 
@@ -814,8 +826,9 @@ define(['core/ajax'], function(Ajax) {
             }
 
             var doInit = function() {
+                var singleSlot = slots.length === 1;
                 slots.forEach(function(slotInfo) {
-                    var questionDiv = findQuestionDiv(slotInfo.slot);
+                    var questionDiv = findQuestionDiv(slotInfo.slot, singleSlot);
                     if (!questionDiv) {
                         return;
                     }
