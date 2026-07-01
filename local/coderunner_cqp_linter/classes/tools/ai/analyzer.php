@@ -188,11 +188,15 @@ class analyzer {
         $lines[] = 'You are a careful code-quality reviewer for an introductory Python course.';
         $lines[] = 'Assess the student code ONLY against the Code Quality Principles listed below.';
         $lines[] = 'Do NOT comment on formatting, whitespace, line length, or syntax — those are handled separately.';
-        $lines[] = 'Be conservative: only report clear, specific, actionable issues. If the code is fine, return an empty list.';
+        $lines[] = 'Be conservative and prefer to under-report: only raise clear, specific, actionable '
+                 . 'issues that would genuinely help the student. When in doubt, say nothing. If the '
+                 . 'code is reasonable, return an empty list.';
         $lines[] = 'Each issue must reference a real line number in the provided code and explain the problem in one or two sentences, addressed to the student.';
         $lines[] = 'A problem statement may be provided. Use it ONLY as context for judging code quality '
                  . '(e.g. whether names and structure fit the task, and whether implementation choices align with the problem). '
-                 . 'Do NOT assess correctness, test results, or compare against any reference solution.';
+                 . 'Do NOT assess correctness, test results, or compare against any reference solution. '
+                 . 'Names that appear in, or are dictated by, the problem statement are fixed by the task — '
+                 . 'never suggest renaming them.';
         $lines[] = '';
         $lines[] = 'Principles to assess:';
 
@@ -209,14 +213,30 @@ class analyzer {
         // Sharper boundaries for the principles the model most often confuses.
         // Only emit guidance for principles actually being assessed.
         $boundaries = [
-            2 => 'CQP 2 (Explanatory Language) covers ONLY clarity of meaning: undescriptive names, '
-               . 'missing or misleading comments, and magic numbers that should be named constants. '
-               . 'It is NOT about whether code is used — unused or dead code is handled separately by '
-               . 'the linter, so do not report it.',
+            2 => 'CQP 2 (Explanatory Language) covers clarity of meaning: names, comments, and '
+               . 'unexplained literal values. Apply it sparingly. '
+               . '(a) Names: only flag a name a competent reader genuinely cannot understand '
+               . '(e.g. a single letter that is not a loop counter, or a meaningless name like '
+               . '"temp" or "data1"). Do NOT flag a name merely for being short, and NEVER flag a '
+               . 'name that comes from or is required by the problem statement. Common conventions '
+               . '(i/j/k loop indices, widely understood domain abbreviations) are acceptable — do '
+               . 'not demand longer names when the meaning is already clear. '
+               . '(b) Comments: introductory code is usually simple, so the ABSENCE of comments is '
+               . 'NOT an issue by itself. Only raise a comment finding when a specific, non-obvious '
+               . 'piece of logic would genuinely be hard to follow without one, or when an existing '
+               . 'comment is misleading or contradicts the code. Never say "add comments" for '
+               . 'straightforward, self-explanatory code. '
+               . '(c) Literals: a magic number or other unexplained literal that would be clearer as '
+               . 'a named constant belongs HERE, under CQP 2 — never under CQP 8. '
+               . 'CQP 2 is NOT about whether code is used — unused or dead code is handled by the '
+               . 'linter, so do not report it.',
             6 => 'CQP 6 (Minimal Duplication) covers repeated or near-identical code that should be '
                . 'consolidated, e.g. into a loop or a helper function.',
-            8 => 'CQP 8 (Problem Alignment) covers data structures or algorithms that do not fit the '
-               . 'stated problem.',
+            8 => 'CQP 8 (Problem Alignment) covers ONLY the choice of data structure or algorithm '
+               . 'relative to the task — e.g. using a list where the problem calls for a dictionary, '
+               . 'or an approach that does not match what was asked. It does NOT cover naming, '
+               . 'comments, or magic numbers / unexplained literals — every one of those is CQP 2, '
+               . 'not CQP 8.',
         ];
         $boundarylines = [];
         foreach ($principles as $num) {
@@ -314,8 +334,12 @@ class analyzer {
      * drop it — this stops the model from re-reporting unused/dead code (often
      * mislabelled as CQP 2) on top of the linter.
      *
-     * Conservative — only moves a finding TO CQP 4 when its text clearly signals
-     * unused/dead/unreachable content.
+     * Conservative — only moves a finding when its text clearly signals a
+     * specific, well-known category:
+     *   - unused/dead/unreachable content -> CQP 4 (Used Content, linter-owned),
+     *     so the allowed-set filter drops it rather than re-reporting;
+     *   - magic numbers / unexplained literals -> CQP 2 (Explanatory Language),
+     *     which the model often mis-files under CQP 8 (Problem Alignment).
      *
      * @param int $num The model-assigned principle number.
      * @param string $text Finding title + message.
@@ -325,6 +349,9 @@ class analyzer {
         $t = \core_text::strtolower($text);
         if (preg_match('/\b(unused|never used|not used|defined but never|dead code|unreachable)\b/', $t)) {
             return 4;
+        }
+        if (preg_match('/\b(magic number|magic value|named constant|should be a constant|hard[- ]?coded (?:number|value|constant))\b/', $t)) {
+            return 2;
         }
         return $num;
     }
