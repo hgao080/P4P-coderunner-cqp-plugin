@@ -34,10 +34,13 @@ Principles use the CQP naming (renamed from CSM).
 | 42 | Parameter | Don't use spaces around the `=` sign when used to indicate a keyword argument, or when used to indicate a default value for an unannotated function parameter. |
 
 The linter additionally enforces no trailing whitespace at the end of a line
-(`trailing-whitespace`), drawn from the CQP principle (cqp.html). File-end
-conventions (a final newline, no trailing blank lines) are deliberately NOT
-checked: in a CodeRunner submission box they are an artifact of how the answer
-is entered rather than a code-quality choice the student made.
+(`trailing-whitespace`) and that imports are placed at the top of the file
+(`wrong-import-position`), both drawn from the CQP principle (cqp.html) — the
+latter matches the CS1 checklist's "File" guideline that elements should be in
+their expected place (imports at the top). File-end conventions (a final
+newline, no trailing blank lines) are deliberately NOT checked: in a CodeRunner
+submission box they are an artifact of how the answer is entered rather than a
+code-quality choice the student made.
 
 ---
 

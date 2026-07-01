@@ -43,6 +43,11 @@ I = 1
 list = [1, 2, 3]
 id = 5
 
+# ── C0413: wrong-import-position ──────────────────────────────────────────────
+# This import sits after the module-level assignments above, so it is not at
+# the top of the file where imports belong.
+import os
+
 
 # ── E302: expected-two-blank-lines ────────────────────────────────────────────
 # Only one blank line above — two required before a top-level function.

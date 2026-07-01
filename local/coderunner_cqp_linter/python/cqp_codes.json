@@ -24,6 +24,12 @@
       "type": "pylint",
       "explanation": "There is unnecessary whitespace at the end of this line. Trailing spaces and tabs are invisible while editing but show up as spurious changes in version control and serve no purpose. Remove any whitespace after the last visible character on the line."
     },
+    "C0413": {
+      "symbol": "wrong-import-position",
+      "principle": 1,
+      "type": "pylint",
+      "explanation": "This import is not at the top of the file. Imports belong together at the top — after any module docstring and before the rest of the code — so a reader can see all of the module's dependencies in one place without hunting through the file. Move this import up with the others."
+    },
     "W191": {
       "symbol": "indentation-contains-tabs",
       "principle": 1,
