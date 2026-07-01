@@ -159,6 +159,7 @@ class observer {
             $record->slot        = (int)$slot;
             $record->issuecount  = $result->count_filtered($minseverity);
             $record->resultsjson = question_helper::build_results_json($result, $minseverity);
+            $record->code        = self::capture_code($qa);
             $record->eventtype   = 'submit';
             $record->timecreated = $now;
 
@@ -214,10 +215,38 @@ class observer {
         $record->slot        = (int)$slot;
         $record->issuecount  = (int)$airesult['total_issues'];
         $record->resultsjson = self::build_ai_results_json($airesult);
+        $record->code        = self::cap_code($code);
+        $record->airesponse  = json_encode($airesult);
         $record->eventtype   = 'ai';
         $record->timecreated = $now;
 
         $DB->insert_record('local_crcqp_lint_event', $record);
+    }
+
+    /**
+     * Fetch the student's submitted code for a question attempt, capped for
+     * storage. Returns null when no code is available.
+     *
+     * @param \question_attempt $qa
+     * @return string|null
+     */
+    private static function capture_code(\question_attempt $qa): ?string {
+        $code = question_helper::get_student_code($qa);
+        return ($code === null) ? null : self::cap_code($code);
+    }
+
+    /**
+     * Cap a code string for storage in the TEXT column (CS1 code is tiny; this
+     * only trims pathological input). Multibyte-aware to keep it valid.
+     *
+     * @param string $code
+     * @return string
+     */
+    private static function cap_code(string $code): string {
+        if (\core_text::strlen($code) > 60000) {
+            return \core_text::substr($code, 0, 60000);
+        }
+        return $code;
     }
 
     /**

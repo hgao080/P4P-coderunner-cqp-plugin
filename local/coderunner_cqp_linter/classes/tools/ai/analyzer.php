@@ -97,14 +97,18 @@ class analyzer {
     }
 
     /**
-     * Whether the configured "when" setting includes the given trigger.
+     * Whether AI analysis runs for the given trigger.
+     *
+     * AI now always runs on both triggers (the "Check Code Quality" button and
+     * quiz submission); the admin-configurable "when to run" setting was removed.
+     * The $trigger parameter is retained for call-site clarity and API stability.
      *
      * @param string $trigger 'button' or 'submit'.
-     * @return bool
+     * @return bool Always true.
      */
     public static function runs_on(string $trigger): bool {
-        $when = get_config('local_coderunner_cqp_linter', 'ai_when') ?: 'button';
-        return $when === 'both' || $when === $trigger;
+        unset($trigger);
+        return true;
     }
 
     /**

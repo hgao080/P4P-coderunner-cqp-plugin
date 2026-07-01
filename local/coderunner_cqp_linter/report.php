@@ -56,6 +56,8 @@ $sql = "SELECT e.id,
                e.issuecount,
                e.resultsjson,
                e.eventtype,
+               e.code,
+               e.airesponse,
                e.timecreated
           FROM {local_crcqp_lint_event} e
           JOIN {user}     u ON u.id = e.userid
@@ -91,6 +93,8 @@ if ($download === 'csv') {
         'eventtype',
         'timecreated_unix',
         'timecreated_readable',
+        'code',                  // the student's full source at this event
+        'airesponse',            // full AI analysis response JSON (ai events)
     ]);
 
     foreach ($rows as $row) {
@@ -129,6 +133,8 @@ if ($download === 'csv') {
             $row->eventtype,
             $row->timecreated,
             userdate($row->timecreated, '%Y-%m-%d %H:%M:%S'),
+            $row->code,
+            $row->airesponse,
         ]);
     }
 
@@ -175,6 +181,8 @@ $table->head = [
     get_string('report_col_principles', 'local_coderunner_cqp_linter'),
     get_string('report_col_violations', 'local_coderunner_cqp_linter'),
     get_string('report_col_eventtype', 'local_coderunner_cqp_linter'),
+    get_string('report_col_code', 'local_coderunner_cqp_linter'),
+    get_string('report_col_airesponse', 'local_coderunner_cqp_linter'),
     get_string('report_col_time', 'local_coderunner_cqp_linter'),
 ];
 
@@ -197,6 +205,27 @@ foreach ($preview as $row) {
         }
     }
 
+    // Compact one-line preview of the captured code; full source is in the CSV.
+    $codepreview = trim((string)($row->code ?? ''));
+    if ($codepreview === '') {
+        $codecell = '—';
+    } else {
+        $codecell = html_writer::tag('code',
+            s(shorten_text(preg_replace('/\s+/', ' ', $codepreview), 60)),
+            ['title' => s($codepreview), 'style' => 'white-space:nowrap;']);
+    }
+
+    // Compact one-line preview of the AI response (ai events only); full JSON
+    // is in the CSV.
+    $aipreview = trim((string)($row->airesponse ?? ''));
+    if ($aipreview === '') {
+        $aicell = '—';
+    } else {
+        $aicell = html_writer::tag('code',
+            s(shorten_text(preg_replace('/\s+/', ' ', $aipreview), 60)),
+            ['title' => s($aipreview), 'style' => 'white-space:nowrap;']);
+    }
+
     $table->data[] = [
         $row->id,
         s($row->username) . ' (' . s($row->firstname . ' ' . $row->lastname) . ')',
@@ -206,6 +235,8 @@ foreach ($preview as $row) {
         implode(' ', $badges) ?: '—',
         implode(', ', $checks) ?: '—',
         s($row->eventtype ?? 'button'),
+        $codecell,
+        $aicell,
         userdate($row->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
     ];
 }

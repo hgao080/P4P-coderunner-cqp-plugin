@@ -33,9 +33,12 @@ Principles use the CQP naming (renamed from CSM).
 | 39 | Function | Use blank lines in functions, sparingly, to indicate logical sections. |
 | 42 | Parameter | Don't use spaces around the `=` sign when used to indicate a keyword argument, or when used to indicate a default value for an unannotated function parameter. |
 
-The linter additionally enforces no trailing whitespace at the end of a line
-(`trailing-whitespace`) and that imports are placed at the top of the file
-(`wrong-import-position`), both drawn from the CQP principle (cqp.html) — the
+The linter additionally enforces no trailing whitespace after the code or
+comment on a line (`trailing-whitespace`, pycodestyle W291 — a completely blank
+line left for spacing is *not* flagged, since whitespace-only lines are W293
+which is deliberately left disabled) and that imports are placed at the top of
+the file (`wrong-import-position`), both drawn from the CQP principle
+(cqp.html) — the
 latter matches the CS1 checklist's "File" guideline that elements should be in
 their expected place (imports at the top). File-end conventions (a final
 newline, no trailing blank lines) are deliberately NOT checked: in a CodeRunner

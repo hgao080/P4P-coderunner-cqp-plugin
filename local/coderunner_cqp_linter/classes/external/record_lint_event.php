@@ -47,6 +47,8 @@ class record_lint_event extends \external_api {
             'issuecount'  => new \external_value(PARAM_INT, 'Total CQP issues found', VALUE_DEFAULT, 0),
             'resultsjson' => new \external_value(PARAM_RAW, 'JSON: principles violated and counts', VALUE_DEFAULT, '{}'),
             'eventtype'   => new \external_value(PARAM_ALPHA, 'What triggered this: cqp, check, or precheck', VALUE_DEFAULT, 'cqp'),
+            'code'        => new \external_value(PARAM_RAW, 'Student source code captured at this event', VALUE_DEFAULT, ''),
+            'airesponse'  => new \external_value(PARAM_RAW, 'Full AI analysis response (JSON); only sent on the ai event', VALUE_DEFAULT, ''),
         ]);
     }
 
@@ -59,6 +61,8 @@ class record_lint_event extends \external_api {
      * @param int    $issuecount
      * @param string $resultsjson
      * @param string $eventtype
+     * @param string $code
+     * @param string $airesponse
      * @return bool
      */
     public static function execute(
@@ -67,7 +71,9 @@ class record_lint_event extends \external_api {
         int $slot,
         int $issuecount,
         string $resultsjson,
-        string $eventtype = 'cqp'
+        string $eventtype = 'cqp',
+        string $code = '',
+        string $airesponse = ''
     ): bool {
         global $DB, $USER;
 
@@ -78,6 +84,8 @@ class record_lint_event extends \external_api {
             'issuecount'  => $issuecount,
             'resultsjson' => $resultsjson,
             'eventtype'   => $eventtype,
+            'code'        => $code,
+            'airesponse'  => $airesponse,
         ]);
 
         // Validate context — require the user to be logged in (not a guest).
@@ -118,6 +126,24 @@ class record_lint_event extends \external_api {
         $decoded = json_decode($rawjson);
         $safejson = ($decoded !== null) ? json_encode($decoded) : '{}';
 
+        // The code column is TEXT (up to ~64KB on some DB engines). CS1
+        // submissions are tiny, so this cap only ever trims pathological input.
+        // core_text::substr is multibyte-aware, keeping the stored value valid.
+        $code = (string)$params['code'];
+        if (\core_text::strlen($code) > 60000) {
+            $code = \core_text::substr($code, 0, 60000);
+        }
+
+        // The AI response is JSON (only present on 'ai' events). Validate and
+        // normalise it the same way as resultsjson; drop it if oversized or
+        // malformed rather than storing a broken fragment.
+        $rawai = (string)$params['airesponse'];
+        if (strlen($rawai) > 65535) {
+            $rawai = '';
+        }
+        $decodedai = json_decode($rawai);
+        $safeai = ($decodedai !== null) ? json_encode($decodedai) : '';
+
         $record = new \stdClass();
         $record->userid      = (int)$USER->id;
         $record->questionid  = $params['questionid'];
@@ -125,6 +151,8 @@ class record_lint_event extends \external_api {
         $record->slot        = $params['slot'];
         $record->issuecount  = max(0, $params['issuecount']);
         $record->resultsjson = $safejson;
+        $record->code        = $code;
+        $record->airesponse  = $safeai;
         $record->eventtype   = in_array($params['eventtype'], self::ALLOWED_EVENTTYPES, true)
                                ? $params['eventtype'] : 'cqp';
         $record->timecreated = time();

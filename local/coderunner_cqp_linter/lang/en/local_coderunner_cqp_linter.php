@@ -40,12 +40,6 @@ $string['jobe_host'] = 'Jobe server host (optional override)';
 $string['jobe_host_desc'] = 'Leave empty to inherit the Jobe server URL from CodeRunner\'s settings. Set an explicit hostname (e.g. jobe.example.com) to use a different Jobe server for linting.';
 $string['timeout'] = 'Pylint timeout (seconds)';
 $string['timeout_desc'] = 'Maximum time in seconds for pylint to analyse a single submission. Increase for large code submissions.';
-$string['max_code_size'] = 'Maximum code size (bytes)';
-$string['max_code_size_desc'] = 'Maximum size of student code that will be analysed. Submissions larger than this are skipped.';
-$string['default_disable'] = 'Disabled checks';
-$string['default_disable_desc'] = 'Comma-separated list of pylint checks to disable globally (e.g. "import-error,no-member"). These checks will not appear in student feedback.';
-$string['min_severity'] = 'Minimum severity';
-$string['min_severity_desc'] = 'Only show messages at this severity level or above.';
 $string['cache_ttl'] = 'Cache lifetime (seconds)';
 $string['cache_ttl_desc'] = 'How long to cache lint results for identical code submissions.';
 $string['pylintrc_path'] = 'Pylintrc file path';
@@ -58,12 +52,6 @@ $string['severity_warning'] = 'Warning';
 $string['severity_refactor'] = 'Refactor';
 $string['severity_convention'] = 'Convention';
 $string['severity_info'] = 'Info';
-
-// Severity options for settings dropdown.
-$string['severity_option_error'] = 'Errors only';
-$string['severity_option_warning'] = 'Warnings and above';
-$string['severity_option_refactor'] = 'Refactoring suggestions and above';
-$string['severity_option_convention'] = 'All (including style conventions)';
 
 // Lint panel UI.
 $string['lintresults'] = 'Code Quality Report';
@@ -116,6 +104,8 @@ $string['report_col_issues'] = 'Issues found';
 $string['report_col_principles'] = 'Principles violated';
 $string['report_col_violations'] = 'Checks (code@line)';
 $string['report_col_eventtype'] = 'Event type';
+$string['report_col_code'] = 'Code (preview)';
+$string['report_col_airesponse'] = 'AI response (preview)';
 $string['report_col_time'] = 'Time';
 
 // Per-question management form.
@@ -152,11 +142,6 @@ $string['ai_model'] = 'Model';
 $string['ai_model_desc'] = 'The chat completion model to use, e.g. gpt-4o-mini (cheaper, recommended) or gpt-4o.';
 $string['ai_base_url'] = 'API base URL';
 $string['ai_base_url_desc'] = 'OpenAI-compatible API base URL. Default: https://api.openai.com/v1 . Change for Azure OpenAI or a proxy.';
-$string['ai_when'] = 'When to run';
-$string['ai_when_desc'] = 'Choose which paths trigger AI analysis. Each run is one API call (cost).';
-$string['ai_when_button'] = 'Button only — when a student clicks "Check Code Quality"';
-$string['ai_when_submit'] = 'Submission only — when a quiz attempt is submitted';
-$string['ai_when_both'] = 'Both button and submission';
 $string['ai_timeout'] = 'AI request timeout (seconds)';
 $string['ai_timeout_desc'] = 'Maximum time to wait for the API response before giving up.';
 $string['ai_max_code_size'] = 'Maximum code size for AI (bytes)';

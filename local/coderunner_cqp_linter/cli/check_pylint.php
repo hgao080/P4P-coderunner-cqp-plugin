@@ -50,9 +50,8 @@ echo "Configuration:\n";
 echo "  Jobe host (plugin override): " . ($jobeoverride ?: '(none — inheriting from CodeRunner)') . "\n";
 echo "  Jobe host (CodeRunner):      " . $joberunner . "\n";
 echo "  timeout:                     " . (get_config('local_coderunner_cqp_linter', 'timeout') ?: '10') . "s\n";
-echo "  max_code_size:               " . (get_config('local_coderunner_cqp_linter', 'max_code_size') ?: '50000') . " bytes\n";
-echo "  default_disable:             " . (get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error') . "\n";
-echo "  min_severity:                " . (get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention') . "\n\n";
+echo "  default_disable (fixed):     import-error\n";
+echo "  min_severity (fixed):        convention (report everything)\n\n";
 
 // Smoke test.
 if ($status['available']) {

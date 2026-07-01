@@ -52,37 +52,10 @@ if ($hassiteconfig) {
         PARAM_INT
     ));
 
-    // Max code size.
-    $settings->add(new admin_setting_configtext(
-        'local_coderunner_cqp_linter/max_code_size',
-        get_string('max_code_size', 'local_coderunner_cqp_linter'),
-        get_string('max_code_size_desc', 'local_coderunner_cqp_linter'),
-        '50000',
-        PARAM_INT
-    ));
-
-    // Default disabled checks.
-    $settings->add(new admin_setting_configtextarea(
-        'local_coderunner_cqp_linter/default_disable',
-        get_string('default_disable', 'local_coderunner_cqp_linter'),
-        get_string('default_disable_desc', 'local_coderunner_cqp_linter'),
-        'import-error'
-    ));
-
-    // Minimum severity.
-    $severityoptions = [
-        'error' => get_string('severity_option_error', 'local_coderunner_cqp_linter'),
-        'warning' => get_string('severity_option_warning', 'local_coderunner_cqp_linter'),
-        'refactor' => get_string('severity_option_refactor', 'local_coderunner_cqp_linter'),
-        'convention' => get_string('severity_option_convention', 'local_coderunner_cqp_linter'),
-    ];
-    $settings->add(new admin_setting_configselect(
-        'local_coderunner_cqp_linter/min_severity',
-        get_string('min_severity', 'local_coderunner_cqp_linter'),
-        get_string('min_severity_desc', 'local_coderunner_cqp_linter'),
-        'convention',
-        $severityoptions
-    ));
+    // NOTE: "Default disabled checks", "Minimum severity" and "Max code size"
+    // settings were intentionally removed. Disabled checks are configured
+    // per question; severity is always 'convention' (report everything); and
+    // there is no global code-size cap for the static linter.
 
     // Cache TTL.
     $settings->add(new admin_setting_configtext(
@@ -131,17 +104,9 @@ if ($hassiteconfig) {
         PARAM_URL
     ));
 
-    $settings->add(new admin_setting_configselect(
-        'local_coderunner_cqp_linter/ai_when',
-        get_string('ai_when', 'local_coderunner_cqp_linter'),
-        get_string('ai_when_desc', 'local_coderunner_cqp_linter'),
-        'button',
-        [
-            'button' => get_string('ai_when_button', 'local_coderunner_cqp_linter'),
-            'submit' => get_string('ai_when_submit', 'local_coderunner_cqp_linter'),
-            'both'   => get_string('ai_when_both', 'local_coderunner_cqp_linter'),
-        ]
-    ));
+    // NOTE: The AI "when to run" selector was intentionally removed. AI analysis
+    // always runs on both the Check Code Quality button and on quiz submission
+    // (see analyzer::runs_on(), which is hardcoded to run on both triggers).
 
     $settings->add(new admin_setting_configtext(
         'local_coderunner_cqp_linter/ai_timeout',

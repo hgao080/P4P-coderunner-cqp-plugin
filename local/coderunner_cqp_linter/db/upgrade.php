@@ -109,5 +109,46 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026062101, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026070100) {
+        // Capture the student's submitted source code alongside each lint
+        // interaction event (Check Code Quality button, Precheck, Check) so it
+        // can be exported and analysed for research.
+        $table = new xmldb_table('local_crcqp_lint_event');
+        $field = new xmldb_field('code', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after resultsjson.
+            $field->setPrevious('resultsjson');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026070100, 'local', 'coderunner_cqp_linter');
+    }
+
+    if ($oldversion < 2026070101) {
+        // Capture the full AI analysis response (JSON) so its qualitative
+        // feedback can be exported and analysed. Populated only on ai events.
+        $table = new xmldb_table('local_crcqp_lint_event');
+        $field = new xmldb_field('airesponse', XMLDB_TYPE_TEXT, null, null, null, null, null);
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after code.
+            $field->setPrevious('code');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026070101, 'local', 'coderunner_cqp_linter');
+    }
+
+    if ($oldversion < 2026070102) {
+        // These admin settings were removed. Clear any stored values so the
+        // fixed behaviour applies: disabled checks are per-question with an
+        // 'import-error' baseline, severity is always 'convention' (report
+        // everything), there is no global code-size cap, and AI always runs on
+        // both the button and submission. Unsetting matters — a previously
+        // saved value would otherwise still override the fixed defaults.
+        unset_config('max_code_size', 'local_coderunner_cqp_linter');
+        unset_config('default_disable', 'local_coderunner_cqp_linter');
+        unset_config('min_severity', 'local_coderunner_cqp_linter');
+        unset_config('ai_when', 'local_coderunner_cqp_linter');
+        upgrade_plugin_savepoint(true, 2026070102, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }

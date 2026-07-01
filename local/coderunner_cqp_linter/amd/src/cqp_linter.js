@@ -379,8 +379,10 @@ define(['core/ajax'], function(Ajax) {
      * @param {Array}  principles Principle objects with number/count.
      * @param {Array}  messages   Per-violation messages (code, symbol, line, cqp_number).
      * @param {string} eventtype  'cqp'
+     * @param {string} code       The student's source code at this event.
+     * @param {string} airesponse Full AI response JSON (only for the 'ai' event).
      */
-    function recordLintEvent(slotInfo, issuecount, principles, messages, eventtype) {
+    function recordLintEvent(slotInfo, issuecount, principles, messages, eventtype, code, airesponse) {
         var urlParams = new URLSearchParams(window.location.search);
         var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
 
@@ -392,7 +394,9 @@ define(['core/ajax'], function(Ajax) {
                 slot:        slotInfo.slot,
                 issuecount:  issuecount,
                 resultsjson: JSON.stringify(buildSummary(principles, messages)),
-                eventtype:   eventtype || 'cqp'
+                eventtype:   eventtype || 'cqp',
+                code:        code || '',
+                airesponse:  airesponse || ''
             }
         }])[0].catch(function() {
             // Logging failure is non-fatal — never disrupt the student.
@@ -411,8 +415,9 @@ define(['core/ajax'], function(Ajax) {
      * @param {Array}  principles Principle objects from the last CQP check.
      * @param {Array}  messages   Per-violation messages from the last CQP check.
      * @param {string} eventtype  'check' or 'precheck'
+     * @param {string} code       The code currently in the editor at click time.
      */
-    function recordLintEventKeepalive(slotInfo, issuecount, principles, messages, eventtype) {
+    function recordLintEventKeepalive(slotInfo, issuecount, principles, messages, eventtype, code) {
         var urlParams = new URLSearchParams(window.location.search);
         var attemptId = parseInt(urlParams.get('attempt') || '0', 10);
 
@@ -429,7 +434,8 @@ define(['core/ajax'], function(Ajax) {
                 slot:        slotInfo.slot,
                 issuecount:  issuecount,
                 resultsjson: JSON.stringify(buildSummary(principles, messages)),
-                eventtype:   eventtype
+                eventtype:   eventtype,
+                code:        code || ''
             }
         }]);
 
@@ -471,7 +477,10 @@ define(['core/ajax'], function(Ajax) {
             checkBtn.dataset.cqpListened = '1';
             checkBtn.addEventListener('click', function() {
                 var r = getLastResult();
-                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages, 'check');
+                // Capture the code as it stands right now — this is what the
+                // student is submitting, which may differ from the last CQP check.
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages,
+                    'check', getCode(questionDiv));
             });
         }
 
@@ -479,7 +488,8 @@ define(['core/ajax'], function(Ajax) {
             precheckBtn.dataset.cqpListened = '1';
             precheckBtn.addEventListener('click', function() {
                 var r = getLastResult();
-                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages, 'precheck');
+                recordLintEventKeepalive(slotInfo, r.issuecount, r.principles, r.messages,
+                    'precheck', getCode(questionDiv));
             });
         }
     }
@@ -575,7 +585,7 @@ define(['core/ajax'], function(Ajax) {
                     messages: data.messages
                 };
 
-                recordLintEvent(slotInfo, data.total_issues, data.principles, data.messages, 'cqp');
+                recordLintEvent(slotInfo, data.total_issues, data.principles, data.messages, 'cqp', code);
 
                 btn.disabled = false;
                 btn.textContent = 'Check Code Quality';
@@ -630,7 +640,10 @@ define(['core/ajax'], function(Ajax) {
             container.style.display = '';
             // Record the AI interaction for research (separate eventtype).
             if (data && data.success) {
-                recordLintEvent(slotInfo, data.total_issues, data.principles, data.messages, 'ai');
+                // Store the full AI payload (incl. per-issue feedback text) so
+                // the qualitative AI response can be analysed for research.
+                recordLintEvent(slotInfo, data.total_issues, data.principles, data.messages,
+                    'ai', code, JSON.stringify(data));
             }
             return data;
         }).catch(function() {

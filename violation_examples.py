@@ -21,8 +21,10 @@ import math
 SINGLE_QUOTED = 'hello'
 DOUBLE_QUOTED = "world"
 
-# ── C0303: trailing-whitespace ────────────────────────────────────────────────
-# The assignment line below ends with spaces after the value.
+# ── W291: trailing-whitespace ─────────────────────────────────────────────────
+# The assignment line below ends with spaces after the value. (W291 flags only
+# content lines like this — a blank line containing spaces is W293, which is
+# deliberately not enabled.)
 trailing_ws_demo = 1   
 
 # ── C0103: invalid-name ───────────────────────────────────────────────────────

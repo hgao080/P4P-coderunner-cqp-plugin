@@ -18,11 +18,11 @@
       "type": "pylint",
       "explanation": "The indentation on this line does not match the expected level. Consistent indentation is how Python signals code structure — incorrect indentation misleads the reader about which block a line belongs to."
     },
-    "C0303": {
+    "W291": {
       "symbol": "trailing-whitespace",
       "principle": 1,
-      "type": "pylint",
-      "explanation": "There is unnecessary whitespace at the end of this line. Trailing spaces and tabs are invisible while editing but show up as spurious changes in version control and serve no purpose. Remove any whitespace after the last visible character on the line."
+      "type": "pycodestyle",
+      "explanation": "There is unnecessary whitespace at the end of this line, after the last piece of code or comment. Trailing spaces and tabs are invisible while editing but show up as spurious changes in version control and serve no purpose. Remove any whitespace after the last visible character. (A completely blank line left for spacing is fine — this only flags lines that have code or a comment on them.)"
     },
     "C0413": {
       "symbol": "wrong-import-position",
