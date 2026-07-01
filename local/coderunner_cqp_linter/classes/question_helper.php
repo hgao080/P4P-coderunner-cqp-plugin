@@ -99,7 +99,7 @@ class question_helper {
     /**
      * Check if AI analysis is enabled for a specific question.
      *
-     * Requires both the per-question opt-in and the site-wide AI switch+key.
+     * Requires the per-question opt-in and a configured site-wide AI API key.
      *
      * @param int $questionid The question ID.
      * @return bool True if AI analysis should run for this question.

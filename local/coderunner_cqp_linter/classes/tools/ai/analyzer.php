@@ -87,13 +87,16 @@ class analyzer {
     }
 
     /**
-     * Whether AI analysis is enabled site-wide and usable (has a key).
+     * Whether AI analysis is usable site-wide.
+     *
+     * The site-wide on/off toggle was removed: AI is enabled globally whenever
+     * an API key is configured (it cannot run without one), and is then opted in
+     * per question. Leaving the API key blank keeps AI off everywhere.
      *
      * @return bool
      */
     public static function is_globally_enabled(): bool {
-        return (bool)get_config('local_coderunner_cqp_linter', 'ai_enabled')
-            && trim((string)get_config('local_coderunner_cqp_linter', 'ai_api_key')) !== '';
+        return trim((string)get_config('local_coderunner_cqp_linter', 'ai_api_key')) !== '';
     }
 
     /**

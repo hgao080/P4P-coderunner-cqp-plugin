@@ -133,11 +133,9 @@ $string['manage_marks_weight_desc'] = 'Relative mark weight for the style check 
 
 // AI analysis — admin settings.
 $string['ai_heading'] = 'AI analysis (experimental)';
-$string['ai_heading_desc'] = 'Optionally use an OpenAI model to assess the Code Quality Principles a static linter cannot check well (descriptive naming, comment quality, duplication, modular structure, problem alignment). <strong>AI feedback can be unreliable</strong> — it is clearly labelled as experimental for students, disabled by default, and every aspect below is configurable. Enabling this sends student code to the configured API endpoint.';
-$string['ai_enabled'] = 'Enable AI analysis';
-$string['ai_enabled_desc'] = 'Master switch. When off, no AI calls are made anywhere regardless of per-question settings.';
+$string['ai_heading_desc'] = 'Optionally use an OpenAI model to assess the Code Quality Principles a static linter cannot check well (descriptive naming, comment quality, duplication, modular structure, problem alignment). <strong>AI feedback can be unreliable</strong> — it is clearly labelled as experimental for students. AI stays off until you set an API key below, and is then enabled per question. Enabling this sends student code to the configured API endpoint.';
 $string['ai_api_key'] = 'OpenAI API key';
-$string['ai_api_key_desc'] = 'Your OpenAI (or compatible) API key. Stored in Moodle config. Leave blank to keep AI analysis effectively disabled.';
+$string['ai_api_key_desc'] = 'Your OpenAI (or compatible) API key. Stored in Moodle config. This is the global on/off for AI: set a key to make AI available (then enable it per question), or leave it blank to keep AI disabled everywhere.';
 $string['ai_model'] = 'Model';
 $string['ai_model_desc'] = 'The chat completion model to use, e.g. gpt-4o-mini (cheaper, recommended) or gpt-4o.';
 $string['ai_base_url'] = 'API base URL';
@@ -151,8 +149,8 @@ $string['ai_temperature_desc'] = 'Sampling temperature 0.0–1.0. Lower is more 
 
 // AI analysis — per-question and UI.
 $string['manage_ai_enabled'] = '(experimental) Enable AI analysis';
-$string['manage_ai_enabled_label'] = 'Use AI to assess this question (requires AI analysis enabled site-wide)';
-$string['manage_ai_enabled_help'] = 'When enabled (and AI analysis is configured site-wide), the configured OpenAI model assesses this question\'s submissions against the selected Code Quality Principles. AI feedback is shown to students in a separate, clearly labelled "experimental" section. AI can be unreliable, so review its suggestions before relying on them.';
+$string['manage_ai_enabled_label'] = 'Use AI to assess this question';
+$string['manage_ai_enabled_help'] = 'When enabled, the configured OpenAI model assesses this question\'s submissions against the selected Code Quality Principles. AI feedback is shown to students in a separate, clearly labelled "experimental" section. AI can be unreliable, so review its suggestions before relying on them.';
 $string['manage_ai_principles'] = 'Principles assessed by AI';
 $string['manage_ai_principles_help'] = 'Choose which Code Quality Principles the AI should evaluate for this question. The static linter continues to handle principles 1, 3, and 5. Unticking all of them means the AI assesses nothing even if AI analysis is enabled above.';
 $string['ai_panel_title'] = 'AI Feedback (experimental)';

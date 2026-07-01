@@ -150,5 +150,14 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026070102, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026070104) {
+        // The site-wide AI on/off toggle was removed. AI is now enabled globally
+        // whenever an API key is configured, and opted in per question. Clear the
+        // stale toggle so a previously-saved "off" value can no longer suppress
+        // AI when a key is present.
+        unset_config('ai_enabled', 'local_coderunner_cqp_linter');
+        upgrade_plugin_savepoint(true, 2026070104, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }

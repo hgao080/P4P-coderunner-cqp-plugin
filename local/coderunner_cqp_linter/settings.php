@@ -74,12 +74,10 @@ if ($hassiteconfig) {
         get_string('ai_heading_desc', 'local_coderunner_cqp_linter')
     ));
 
-    $settings->add(new admin_setting_configcheckbox(
-        'local_coderunner_cqp_linter/ai_enabled',
-        get_string('ai_enabled', 'local_coderunner_cqp_linter'),
-        get_string('ai_enabled_desc', 'local_coderunner_cqp_linter'),
-        0
-    ));
+    // NOTE: The site-wide AI on/off toggle was removed. AI is enabled globally
+    // as soon as an API key is set below, and is then turned on per question via
+    // each question's "Enable AI analysis" option. Leave the API key blank to
+    // keep AI off everywhere.
 
     $settings->add(new admin_setting_configpasswordunmask(
         'local_coderunner_cqp_linter/ai_api_key',
