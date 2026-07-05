@@ -260,6 +260,15 @@ try:
                 Run([
                     '--disable=all',
                     '--enable=' + ','.join(pylint_codes),
+                    # A top-level assignment is treated by pylint as a "constant"
+                    # and, by default, demanded to be UPPER_CASE. Many CS101
+                    # questions are plain scripts (no function required), so a
+                    # normal variable like 'factor' would be wrongly flagged as
+                    # "should be a constant". Allow a module-level name to be
+                    # either UPPER_CASE (a real constant) or lowercase_with_underscores
+                    # (a script variable); genuinely inconsistent names such as
+                    # 'Factor' or 'myVar' are still caught.
+                    '--const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__)|([a-z_][a-z0-9_]*))\$',
                     '--output-format=json2',
                     '--score=n',
                     tmppath,
@@ -470,7 +479,12 @@ try:
     _captured = io.StringIO()
     sys.stdout = _captured
     try:
-        args = ['--output-format=json2', '--score=n']
+        # Allow a module-level name to be UPPER_CASE (a real constant) or
+        # lowercase_with_underscores (a script variable), so a plain-script
+        # question's variable like 'factor' is not flagged as "should be a
+        # constant". See build_button_runner_script for the rationale.
+        args = ['--output-format=json2', '--score=n',
+                '--const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__)|([a-z_][a-z0-9_]*))\$']
         if pylint_codes:
             args.extend(['--disable=all', '--enable=' + ','.join(pylint_codes)])
         Run(args + [path], exit=False)
