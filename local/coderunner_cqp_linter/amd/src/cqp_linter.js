@@ -50,10 +50,21 @@ define(['core/ajax'], function(Ajax) {
      */
     function findAceEditor(questionDiv) {
         var aceEl = questionDiv.querySelector('.ace_editor');
-        if (!aceEl || !aceEl.id) {
+        if (!aceEl) {
             return null;
         }
-        if (typeof ace !== 'undefined' && ace.edit) {
+        // CodeRunner's AceWrapper (ui_ace.js) creates the editor on a bare,
+        // id-less <div> — it never sets an id on the .ace_editor container
+        // itself (only on an inner .ace_text-input, and only once the
+        // editor's first render pass has fired). Relying on aceEl.id + ace.edit()
+        // meant this only found the editor after some interaction happened to
+        // trigger that render pass. Ace always stashes the live editor on the
+        // container as soon as it's created, regardless of id, so read that
+        // directly instead.
+        if (aceEl.env && aceEl.env.editor) {
+            return aceEl.env.editor;
+        }
+        if (aceEl.id && typeof ace !== 'undefined' && ace.edit) {
             try {
                 return ace.edit(aceEl.id);
             } catch (e) {
@@ -88,6 +99,27 @@ define(['core/ajax'], function(Ajax) {
      */
     function annotationType() {
         return 'warning';
+    }
+
+    /**
+     * Force Ace to fully repaint its gutter and marker layers.
+     *
+     * setAnnotations()/addMarker() alone don't reliably repaint if the student
+     * has never touched the editor (a known Ace quirk — see qtype_coderunner's
+     * own fixSlowLoad() workaround in ui_ace.js, which papers over the same
+     * class of issue for the editor's very first paint). The one thing proven
+     * to force a repaint is an actual document change, so simulate a no-op
+     * edit: insert a space at the very end of the document, then immediately
+     * remove it. This fires the same 'change' pipeline a real keystroke would.
+     *
+     * @param {Object} editor Ace editor instance.
+     */
+    function forceRedraw(editor) {
+        var doc = editor.getSession().getDocument();
+        var lastRow = doc.getLength() - 1;
+        var col = doc.getLine(lastRow).length;
+        doc.insertInLine({row: lastRow, column: col}, ' ');
+        doc.removeInLine(lastRow, col, col + 1);
     }
 
     /**
@@ -182,6 +214,7 @@ define(['core/ajax'], function(Ajax) {
         };
 
         refreshAnnotations();
+        forceRedraw(editor);
 
         var onChange = function() {
             // Defer one tick so Ace anchor positions settle before we read them.
@@ -817,6 +850,7 @@ define(['core/ajax'], function(Ajax) {
 
         if (annotations.length > 0) {
             session.setAnnotations(annotations);
+            forceRedraw(editor);
         }
     }
 
