@@ -49,9 +49,7 @@ $joberunner   = get_config('qtype_coderunner', 'jobe_host') ?: '(not configured)
 echo "Configuration:\n";
 echo "  Jobe host (plugin override): " . ($jobeoverride ?: '(none — inheriting from CodeRunner)') . "\n";
 echo "  Jobe host (CodeRunner):      " . $joberunner . "\n";
-echo "  timeout:                     " . (get_config('local_coderunner_cqp_linter', 'timeout') ?: '10') . "s\n";
-echo "  default_disable (fixed):     import-error\n";
-echo "  min_severity (fixed):        convention (report everything)\n\n";
+echo "  timeout:                     " . (get_config('local_coderunner_cqp_linter', 'timeout') ?: '10') . "s\n\n";
 
 // Smoke test.
 if ($status['available']) {

@@ -281,8 +281,6 @@ function local_coderunner_cqp_linter_build_panels(): array {
         return [];
     }
 
-    $minseverity = get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention';
-
     foreach ($quba->get_slots() as $slot) {
         $qa = $quba->get_question_attempt($slot);
 
@@ -295,14 +293,10 @@ function local_coderunner_cqp_linter_build_panels(): array {
             continue;
         }
 
-        $question = $qa->get_question();
-        $config = \local_coderunner_cqp_linter\question_helper::get_lint_config($question->id);
-        $effectiveseverity = $config['min_severity'] ?? $minseverity;
-
         $panelid = 'pylint-panel-' . $slot;
         $panels[$slot] = \local_coderunner_cqp_linter\output\lint_renderer::render(
             $result,
-            $effectiveseverity,
+            'convention',
             $panelid
         );
     }

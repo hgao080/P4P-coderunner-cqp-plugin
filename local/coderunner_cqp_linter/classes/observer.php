@@ -148,17 +148,15 @@ class observer {
                 continue;
             }
 
-            $question    = $qa->get_question();
-            $config      = question_helper::get_lint_config($question->id);
-            $minseverity = $config['min_severity'] ?? 'convention';
+            $question = $qa->get_question();
 
             $record              = new \stdClass();
             $record->userid      = (int)$attemptobj->userid;
             $record->questionid  = (int)$question->id;
             $record->attemptid   = (int)$attemptid;
             $record->slot        = (int)$slot;
-            $record->issuecount  = $result->count_filtered($minseverity);
-            $record->resultsjson = question_helper::build_results_json($result, $minseverity);
+            $record->issuecount  = $result->count_filtered();
+            $record->resultsjson = question_helper::build_results_json($result);
             $record->code        = self::capture_code($qa);
             $record->eventtype   = 'submit';
             $record->timecreated = $now;
