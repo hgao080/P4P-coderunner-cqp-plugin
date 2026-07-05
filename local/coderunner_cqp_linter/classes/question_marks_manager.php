@@ -192,7 +192,7 @@ class question_marks_manager {
     private static function build_prepend(string $disabled, string $minseverity): string {
         $dir = dirname(__DIR__) . '/python/';
 
-        foreach (['cqp_principles.py', 'cqp_custom_checkers.py', 'cqp_style_check.py'] as $file) {
+        foreach (['cqp_principles.py', 'cqp_custom_checkers.py', 'cqp_style_check.py', 'cqp_codes.json'] as $file) {
             if (!file_exists($dir . $file)) {
                 throw new \moodle_exception('error', 'local_coderunner_cqp_linter', '',
                     "CQP support file missing: {$file}");
@@ -202,12 +202,15 @@ class question_marks_manager {
         $principlesb64  = base64_encode(file_get_contents($dir . 'cqp_principles.py'));
         $checkerb64     = base64_encode(file_get_contents($dir . 'cqp_custom_checkers.py'));
         $stylecheckb64  = base64_encode(file_get_contents($dir . 'cqp_style_check.py'));
+        $codesjsonb64   = base64_encode(file_get_contents($dir . 'cqp_codes.json'));
 
         $safedisabled   = addslashes($disabled);
         $safeminsev     = addslashes($minseverity);
 
         return self::MARKER_BEGIN . "\n" .
                "import base64 as _b64\n" .
+               "with open('cqp_codes.json', 'wb') as _f:\n" .
+               "    _f.write(_b64.b64decode('{$codesjsonb64}'))\n" .
                "with open('cqp_principles.py', 'wb') as _f:\n" .
                "    _f.write(_b64.b64decode('{$principlesb64}'))\n" .
                "with open('cqp_custom_checkers.py', 'wb') as _f:\n" .
