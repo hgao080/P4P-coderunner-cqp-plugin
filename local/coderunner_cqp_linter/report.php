@@ -44,28 +44,12 @@ if (!empty($adminids)) {
     $params += $notinparams;
 }
 
-// Build the dataset — join to user and question for readable columns.
-$sql = "SELECT e.id,
-               u.username,
-               u.firstname,
-               u.lastname,
-               q.name        AS question_name,
-               e.questionid,
-               e.attemptid,
-               e.slot,
-               e.issuecount,
-               e.resultsjson,
-               e.eventtype,
-               e.code,
-               e.airesponse,
-               e.timecreated
-          FROM {local_crcqp_lint_event} e
-          JOIN {user}     u ON u.id = e.userid
-          JOIN {question} q ON q.id = e.questionid
-         WHERE $where
-      ORDER BY e.timecreated ASC";
-
-$rows = $DB->get_records_sql($sql, $params);
+// Shared FROM/WHERE — join to user and question for readable columns and to
+// keep the page's count consistent with what the CSV actually exports.
+$fromwhere = "FROM {local_crcqp_lint_event} e
+              JOIN {user}     u ON u.id = e.userid
+              JOIN {question} q ON q.id = e.questionid
+             WHERE $where";
 
 // ── CSV download ─────────────────────────────────────────────────────────────
 if ($download === 'csv') {
@@ -87,8 +71,6 @@ if ($download === 'csv') {
         'attemptid',
         'slot',
         'issuecount',
-        'principles_violated',   // extracted from JSON for convenience
-        'violations',            // per-check detail: code:symbol@line (CQPn)
         'resultsjson',
         'eventtype',
         'timecreated_unix',
@@ -97,26 +79,27 @@ if ($download === 'csv') {
         'airesponse',            // full AI analysis response JSON (ai events)
     ]);
 
-    foreach ($rows as $row) {
-        $decoded = json_decode($row->resultsjson, true);
-        $principlenumbers = [];
-        if (!empty($decoded['principles'])) {
-            foreach ($decoded['principles'] as $p) {
-                $label = 'CQP' . $p['n'];
-                if (!empty($p['name'])) {
-                    $label .= ' ' . $p['name'];
-                }
-                $principlenumbers[] = $label . '×' . $p['count'];
-            }
-        }
-        $violationlist = [];
-        if (!empty($decoded['violations'])) {
-            foreach ($decoded['violations'] as $v) {
-                $violationlist[] = ($v['code'] ?? '') . ':' . ($v['symbol'] ?? '') .
-                    '@' . ($v['line'] ?? '') . ' (CQP' . ($v['cqp'] ?? '') . ')';
-            }
-        }
+    // Stream via a recordset so the full dataset (including the large code and
+    // airesponse TEXT columns) is never all held in PHP memory at once.
+    $sql = "SELECT e.id,
+                   u.username,
+                   u.firstname,
+                   u.lastname,
+                   q.name        AS question_name,
+                   e.questionid,
+                   e.attemptid,
+                   e.slot,
+                   e.issuecount,
+                   e.resultsjson,
+                   e.eventtype,
+                   e.code,
+                   e.airesponse,
+                   e.timecreated
+              $fromwhere
+          ORDER BY e.timecreated ASC";
 
+    $rs = $DB->get_recordset_sql($sql, $params);
+    foreach ($rs as $row) {
         fputcsv($out, [
             $row->id,
             $row->username,
@@ -127,8 +110,6 @@ if ($download === 'csv') {
             $row->attemptid,
             $row->slot,
             $row->issuecount,
-            implode('; ', $principlenumbers),
-            implode('; ', $violationlist),
             $row->resultsjson,
             $row->eventtype,
             $row->timecreated,
@@ -137,6 +118,7 @@ if ($download === 'csv') {
             $row->airesponse,
         ]);
     }
+    $rs->close();
 
     fclose($out);
     exit;
@@ -152,14 +134,11 @@ $PAGE->set_pagelayout('admin');
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('report_title', 'local_coderunner_cqp_linter'));
 
-$total = count($rows);
+// Count only — deliberately do not load the event rows (which include the large
+// code and airesponse columns) into memory just to render this page. The full
+// dataset is streamed on demand via the CSV download.
+$total = $DB->count_records_sql("SELECT COUNT(1) $fromwhere", $params);
 echo html_writer::tag('p', get_string('report_rowcount', 'local_coderunner_cqp_linter', $total));
-
-$csvurl = new moodle_url('/local/coderunner_cqp_linter/report.php', ['download' => 'csv']);
-echo html_writer::link($csvurl,
-    get_string('report_download_csv', 'local_coderunner_cqp_linter'),
-    ['class' => 'btn btn-primary', 'style' => 'margin-bottom:1rem;']
-);
 
 if ($total === 0) {
     echo $OUTPUT->notification(get_string('report_nodata', 'local_coderunner_cqp_linter'), 'info');
@@ -167,87 +146,10 @@ if ($total === 0) {
     exit;
 }
 
-// Preview table — capped at 200 rows so the page stays manageable.
-$preview = array_slice((array)$rows, 0, 200, true);
-
-$table = new html_table();
-$table->attributes['class'] = 'generaltable table-sm';
-$table->head = [
-    '#',
-    get_string('report_col_user', 'local_coderunner_cqp_linter'),
-    get_string('report_col_question', 'local_coderunner_cqp_linter'),
-    get_string('report_col_attempt', 'local_coderunner_cqp_linter'),
-    get_string('report_col_issues', 'local_coderunner_cqp_linter'),
-    get_string('report_col_principles', 'local_coderunner_cqp_linter'),
-    get_string('report_col_violations', 'local_coderunner_cqp_linter'),
-    get_string('report_col_eventtype', 'local_coderunner_cqp_linter'),
-    get_string('report_col_code', 'local_coderunner_cqp_linter'),
-    get_string('report_col_airesponse', 'local_coderunner_cqp_linter'),
-    get_string('report_col_time', 'local_coderunner_cqp_linter'),
-];
-
-foreach ($preview as $row) {
-    $decoded = json_decode($row->resultsjson, true);
-    $badges = [];
-    if (!empty($decoded['principles'])) {
-        foreach ($decoded['principles'] as $p) {
-            $badges[] = html_writer::tag('span',
-                'CQP' . (int)$p['n'] . ' &times;' . (int)$p['count'],
-                ['class' => 'badge badge-secondary', 'style' => 'margin-right:2px;']
-            );
-        }
-    }
-
-    $checks = [];
-    if (!empty($decoded['violations'])) {
-        foreach ($decoded['violations'] as $v) {
-            $checks[] = s(($v['code'] ?? '') . '@' . ($v['line'] ?? ''));
-        }
-    }
-
-    // Compact one-line preview of the captured code; full source is in the CSV.
-    $codepreview = trim((string)($row->code ?? ''));
-    if ($codepreview === '') {
-        $codecell = '—';
-    } else {
-        $codecell = html_writer::tag('code',
-            s(shorten_text(preg_replace('/\s+/', ' ', $codepreview), 60)),
-            ['title' => s($codepreview), 'style' => 'white-space:nowrap;']);
-    }
-
-    // Compact one-line preview of the AI response (ai events only); full JSON
-    // is in the CSV.
-    $aipreview = trim((string)($row->airesponse ?? ''));
-    if ($aipreview === '') {
-        $aicell = '—';
-    } else {
-        $aicell = html_writer::tag('code',
-            s(shorten_text(preg_replace('/\s+/', ' ', $aipreview), 60)),
-            ['title' => s($aipreview), 'style' => 'white-space:nowrap;']);
-    }
-
-    $table->data[] = [
-        $row->id,
-        s($row->username) . ' (' . s($row->firstname . ' ' . $row->lastname) . ')',
-        s($row->question_name),
-        $row->attemptid > 0 ? $row->attemptid : '—',
-        $row->issuecount,
-        implode(' ', $badges) ?: '—',
-        implode(', ', $checks) ?: '—',
-        s($row->eventtype ?? 'button'),
-        $codecell,
-        $aicell,
-        userdate($row->timecreated, get_string('strftimedatetimeshort', 'langconfig')),
-    ];
-}
-
-echo html_writer::table($table);
-
-if ($total > 200) {
-    echo html_writer::tag('p',
-        get_string('report_truncated', 'local_coderunner_cqp_linter', $total),
-        ['class' => 'text-muted']
-    );
-}
+$csvurl = new moodle_url('/local/coderunner_cqp_linter/report.php', ['download' => 'csv']);
+echo html_writer::link($csvurl,
+    get_string('report_download_csv', 'local_coderunner_cqp_linter'),
+    ['class' => 'btn btn-primary']
+);
 
 echo $OUTPUT->footer();
