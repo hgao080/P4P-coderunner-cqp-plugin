@@ -159,5 +159,17 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026070104, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026070106) {
+        // min_severity was never settable anywhere (the admin setting it read
+        // from was removed in 2026070102) — every code path already hardcoded
+        // 'convention'. Drop the column now that nothing writes or reads it.
+        $table = new xmldb_table('local_crcqp_qconfig');
+        $field = new xmldb_field('min_severity');
+        if ($dbman->field_exists($table, $field)) {
+            $dbman->drop_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026070106, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }

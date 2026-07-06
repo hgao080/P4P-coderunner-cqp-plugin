@@ -21,8 +21,8 @@ namespace local_coderunner_cqp_linter;
  *
  * Manages three things on a target question:
  *  1. A block of Python code prepended to the CodeRunner template (writes support
- *     files as base64 and sets __cqp_disabled__, __cqp_min_severity__,
- *     __student_answer__ for the test case to consume).
+ *     files as base64 and sets __cqp_disabled__, __student_answer__ for the test
+ *     case to consume).
  *  2. A row in question_coderunner_tests that calls check_style() and expects
  *     'Style OK'.
  *  3. allornothing=0 on the question (required for partial credit; the original
@@ -50,11 +50,10 @@ class question_marks_manager {
      * @param int    $questionid  Target question ID.
      * @param float  $weight      Mark weight for the style check test case.
      * @param string $disabled    Comma-separated pylint codes/names to suppress.
-     * @param string $minseverity Minimum violation severity to count ('convention', 'warning', etc.)
      * @return int   The original allornothing value (before this plugin set it to 0).
      * @throws \moodle_exception If support files are missing or CodeRunner options not found.
      */
-    public static function enable(int $questionid, float $weight, string $disabled, string $minseverity): int {
+    public static function enable(int $questionid, float $weight, string $disabled): int {
         global $DB;
 
         // Capture original allornothing before removing any existing injection.
@@ -89,7 +88,7 @@ class question_marks_manager {
         }
 
         // Build and save the prepend + base template.
-        $prepend = self::build_prepend($disabled, $minseverity);
+        $prepend = self::build_prepend($disabled);
         $DB->set_field('question_coderunner_options', 'template',
             $prepend . "\n" . $basetemplate, ['questionid' => $questionid]);
 
@@ -98,7 +97,7 @@ class question_marks_manager {
             'questionid'      => $questionid,
             'testtype'        => 0,
             'testcode'        => "from cqp_style_check import check_style\n" .
-                                 "print(check_style(__student_answer__, __cqp_disabled__, __cqp_min_severity__))",
+                                 "print(check_style(__student_answer__, __cqp_disabled__))",
             'stdin'           => '',
             'expected'        => 'Style OK',
             'extra'           => self::TEST_EXTRA,
@@ -189,10 +188,10 @@ class question_marks_manager {
      * All three support files are embedded as base64 so Jobe receives a self-contained
      * program — no file_list uploads needed.
      */
-    private static function build_prepend(string $disabled, string $minseverity): string {
+    private static function build_prepend(string $disabled): string {
         $dir = dirname(__DIR__) . '/python/';
 
-        foreach (['cqp_principles.py', 'cqp_custom_checkers.py', 'cqp_style_check.py'] as $file) {
+        foreach (['cqp_principles.py', 'cqp_custom_checkers.py', 'cqp_style_check.py', 'cqp_codes.json'] as $file) {
             if (!file_exists($dir . $file)) {
                 throw new \moodle_exception('error', 'local_coderunner_cqp_linter', '',
                     "CQP support file missing: {$file}");
@@ -202,12 +201,14 @@ class question_marks_manager {
         $principlesb64  = base64_encode(file_get_contents($dir . 'cqp_principles.py'));
         $checkerb64     = base64_encode(file_get_contents($dir . 'cqp_custom_checkers.py'));
         $stylecheckb64  = base64_encode(file_get_contents($dir . 'cqp_style_check.py'));
+        $codesjsonb64   = base64_encode(file_get_contents($dir . 'cqp_codes.json'));
 
         $safedisabled   = addslashes($disabled);
-        $safeminsev     = addslashes($minseverity);
 
         return self::MARKER_BEGIN . "\n" .
                "import base64 as _b64\n" .
+               "with open('cqp_codes.json', 'wb') as _f:\n" .
+               "    _f.write(_b64.b64decode('{$codesjsonb64}'))\n" .
                "with open('cqp_principles.py', 'wb') as _f:\n" .
                "    _f.write(_b64.b64decode('{$principlesb64}'))\n" .
                "with open('cqp_custom_checkers.py', 'wb') as _f:\n" .
@@ -215,7 +216,6 @@ class question_marks_manager {
                "with open('cqp_style_check.py', 'wb') as _f:\n" .
                "    _f.write(_b64.b64decode('{$stylecheckb64}'))\n" .
                "__cqp_disabled__ = '{$safedisabled}'\n" .
-               "__cqp_min_severity__ = '{$safeminsev}'\n" .
                "__student_answer__ = \"\"\"{{ STUDENT_ANSWER | e('py') }}\"\"\"\n" .
                self::MARKER_END;
     }

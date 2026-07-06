@@ -1,6 +1,6 @@
 """Style check module for CQP marks mode.
 
-check_style(source, disabled_str, min_severity) -> 'Style OK' | 'Style issues found: N violation(s)'
+check_style(source, disabled_str) -> 'Style OK' | 'Style issues found: N violation(s)'
 
 Intended to be imported by CodeRunner test case code after cqp_principles.py and
 cqp_custom_checkers.py have been written to disk by the template prepend block.
@@ -12,23 +12,14 @@ import re
 import sys
 import tempfile
 
-SEVERITY_ORDER = ['convention', 'refactor', 'warning', 'error', 'fatal']
-_TYPE_MAP = {'C': 'convention', 'W': 'warning', 'R': 'refactor', 'E': 'error', 'F': 'fatal'}
 
-
-def _code_to_severity(code):
-    if code.startswith('W9'):
-        return 'convention'
-    return _TYPE_MAP.get(code[0] if code else 'C', 'convention')
-
-
-def check_style(source, disabled_str='import-error', min_severity='convention'):
+def check_style(source, disabled_str=''):
     """Run CQP pylint + custom checks on source code.
 
-    Returns 'Style OK' if no violations at or above min_severity,
-    'Style issues found: N violation(s)' if violations exist, or
-    'Style check failed' if the checker itself errors (so a checker crash
-    costs the style mark rather than corrupting the combinator output).
+    Returns 'Style OK' if no violations exist, 'Style issues found: N violation(s)'
+    if violations exist, or 'Style check failed' if the checker itself errors (so
+    a checker crash costs the style mark rather than corrupting the combinator
+    output).
 
     stdout is captured internally so pylint output never leaks into CodeRunner's
     graded output stream.
@@ -44,7 +35,6 @@ def check_style(source, disabled_str='import-error', min_severity='convention'):
         ]
 
         disabled = set(s.strip() for s in disabled_str.split(',') if s.strip())
-        min_sev_idx = SEVERITY_ORDER.index(min_severity) if min_severity in SEVERITY_ORDER else 0
 
         code_map = {}
         for key in principle_keys:
@@ -81,11 +71,7 @@ def check_style(source, disabled_str='import-error', min_severity='convention'):
                 for msg in result.get('messages', []):
                     code = msg.get('messageId') or msg.get('message-id', '')
                     code = normalise_pylint_code(code)
-                    if code not in code_map:
-                        continue
-                    sev = _code_to_severity(code)
-                    sev_idx = SEVERITY_ORDER.index(sev) if sev in SEVERITY_ORDER else 0
-                    if sev_idx >= min_sev_idx:
+                    if code in code_map:
                         violations += 1
             finally:
                 try:
