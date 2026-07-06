@@ -138,6 +138,12 @@ class manage_form extends \moodleform {
         $mform->setDefault('ai_enabled', 0);
         $mform->addHelpButton('ai_enabled', 'manage_ai_enabled', 'local_coderunner_cqp_linter');
 
+        $mform->addElement('advcheckbox', 'marks_enabled',
+            get_string('manage_marks_enabled', 'local_coderunner_cqp_linter'),
+            get_string('manage_marks_enabled_label', 'local_coderunner_cqp_linter'));
+        $mform->setDefault('marks_enabled', 0);
+        $mform->addHelpButton('marks_enabled', 'manage_marks_enabled', 'local_coderunner_cqp_linter');
+
         // Which CQP principles the AI assesses — chosen per question. Disabled
         // until AI analysis is ticked for this question.
         $first = true;
@@ -173,22 +179,6 @@ class manage_form extends \moodleform {
             ['rows' => 2, 'cols' => 60, 'placeholder' => 'e.g. C0114, W0201, E501']);
         $mform->setType('custom_codes', PARAM_RAW_TRIMMED);
         $mform->addHelpButton('custom_codes', 'manage_custom_codes', 'local_coderunner_cqp_linter');
-
-        $mform->addElement('header', 'marks_header', get_string('manage_marks_header', 'local_coderunner_cqp_linter'));
-
-        $mform->addElement('advcheckbox', 'marks_enabled',
-            get_string('manage_marks_enabled', 'local_coderunner_cqp_linter'),
-            get_string('manage_marks_enabled_label', 'local_coderunner_cqp_linter'));
-        $mform->setDefault('marks_enabled', 0);
-        $mform->addHelpButton('marks_enabled', 'manage_marks_enabled', 'local_coderunner_cqp_linter');
-
-        $mform->addElement('text', 'marks_weight',
-            get_string('manage_marks_weight', 'local_coderunner_cqp_linter'),
-            ['size' => 8]);
-        $mform->setType('marks_weight', PARAM_FLOAT);
-        $mform->setDefault('marks_weight', 1.0);
-        $mform->addRule('marks_weight', null, 'numeric', null, 'client');
-        $mform->disabledIf('marks_weight', 'marks_enabled', 'notchecked');
 
         $mform->addElement('hidden', 'questionid', $customdata['questionid']);
         $mform->setType('questionid', PARAM_INT);
