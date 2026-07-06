@@ -46,9 +46,6 @@ class runner {
     /** @var int Timeout in seconds (sent to Jobe as cputime). */
     private int $timeout;
 
-    /** @var string Comma-separated pylint checks to disable. */
-    private string $disablechecks;
-
     /**
      * Constructor. Reads settings from Moodle config.
      *
@@ -69,7 +66,6 @@ class runner {
 
         $this->apikey = get_config('qtype_coderunner', 'jobe_apikey') ?: '';
         $this->timeout = (int)(get_config('local_coderunner_cqp_linter', 'timeout') ?: 10);
-        $this->disablechecks = get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error';
     }
 
     /**
@@ -92,7 +88,7 @@ class runner {
             );
         }
 
-        $disable = $options['disable'] ?? $this->disablechecks;
+        $disable = $options['disable'] ?? '';
 
         $filecontents = $this->read_support_files();
         if ($filecontents === null) {
@@ -124,7 +120,7 @@ class runner {
      * decoded JSON array matching I.json shape, or an error array on failure.
      *
      * @param string $code    Student Python source code.
-     * @param array  $options ['disable' => string, 'min_severity' => string]
+     * @param array  $options ['disable' => string]
      * @return array Decoded JSON array: {success, total_issues, messages[], principles[]}
      */
     public function lint_for_button(string $code, array $options = []): array {
@@ -134,7 +130,7 @@ class runner {
             return array_merge($empty, ['error' => 'Jobe server not configured.']);
         }
 
-        $disable = $options['disable'] ?? $this->disablechecks;
+        $disable = $options['disable'] ?? '';
 
         $filecontents = $this->read_support_files();
         if ($filecontents === null) {

@@ -299,20 +299,18 @@ class question_helper {
      * Merges admin defaults with per-question overrides.
      *
      * @param int $questionid The question ID.
-     * @return array Configuration array with keys: disable, min_severity, rcfile.
+     * @return array Configuration array with keys: disable, rcfile.
      */
     public static function get_lint_config(int $questionid): array {
-        // Start with admin defaults.
         $config = [
-            'disable'      => get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error',
-            'min_severity' => get_config('local_coderunner_cqp_linter', 'min_severity') ?: 'convention',
-            'rcfile'       => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
+            'disable' => '',
+            'rcfile'  => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
         ];
 
         // Merge per-question disabled check overrides.
         $qconfig = self::get_qconfig($questionid);
         if ($qconfig && !empty($qconfig->disabled_checks)) {
-            $config['disable'] .= ',' . $qconfig->disabled_checks;
+            $config['disable'] = $qconfig->disabled_checks;
         }
 
         return $config;

@@ -117,15 +117,14 @@ if ($form->is_cancelled()) {
     $marksenabledold = !empty($existing->marks_enabled);
     $marksenablednew = !empty($data->marks_enabled);
     $weight          = max(0.001, (float)($data->marks_weight ?? 1.0));
-    $globaldisable   = get_config('local_coderunner_cqp_linter', 'default_disable') ?: 'import-error';
-    $disabled        = $questdisable !== '' ? $globaldisable . ',' . $questdisable : $globaldisable;
+    $disabled        = $questdisable;
 
     $originalaon = isset($existing->original_allornothing) ? (int)$existing->original_allornothing : null;
 
     if ($marksenablednew) {
-        // Enable or re-enable (re-injects with current config). Always use convention severity.
+        // Enable or re-enable (re-injects with current config).
         $originalaon = \local_coderunner_cqp_linter\question_marks_manager::enable(
-            $questionid, $weight, $disabled, 'convention'
+            $questionid, $weight, $disabled
         );
     } else if ($marksenabledold && !$marksenablednew) {
         // Disabling marks mode: restore allornothing.
@@ -140,7 +139,6 @@ if ($form->is_cancelled()) {
         'ai_enabled'            => !empty($data->ai_enabled) ? 1 : 0,
         'ai_principles'         => $aiprinciplesstr,
         'disabled_checks'       => $questdisable !== '' ? $questdisable : null,
-        'min_severity'          => null,
         'marks_enabled'         => $marksenablednew ? 1 : 0,
         'marks_weight'          => $marksenablednew ? $weight : null,
         'original_allornothing' => $originalaon,

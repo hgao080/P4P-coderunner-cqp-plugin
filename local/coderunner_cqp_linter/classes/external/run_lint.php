@@ -33,15 +33,6 @@ require_once($CFG->libdir . '/externallib.php');
  */
 class run_lint extends \external_api {
 
-    /** Severity ranking — lower number = less severe. */
-    const SEVERITY_ORDER = [
-        'convention' => 0,
-        'refactor'   => 1,
-        'warning'    => 2,
-        'error'      => 3,
-        'fatal'      => 4,
-    ];
-
     /**
      * Describe the input parameters.
      */
@@ -92,49 +83,7 @@ class run_lint extends \external_api {
             'disable' => $config['disable'],
         ]);
 
-        if (empty($result['success'])) {
-            return json_encode($result);
-        }
-
-        $result = self::apply_min_severity($result, $config['min_severity'] ?? 'convention');
-
         return json_encode($result);
-    }
-
-    /**
-     * Strip messages below the minimum severity threshold.
-     *
-     * @param array  $payload     Decoded I.json payload.
-     * @param string $minseverity One of: convention, refactor, warning, error, fatal.
-     * @return array Filtered payload with updated counts.
-     */
-    private static function apply_min_severity(array $payload, string $minseverity): array {
-        $minrank = self::SEVERITY_ORDER[$minseverity] ?? 0;
-
-        if ($minrank === 0) {
-            return $payload;
-        }
-
-        $payload['messages'] = array_values(array_filter(
-            $payload['messages'],
-            fn($m) => (self::SEVERITY_ORDER[$m['type']] ?? 0) >= $minrank
-        ));
-
-        $principles = [];
-        foreach ($payload['principles'] as $p) {
-            $p['messages'] = array_values(array_filter(
-                $p['messages'],
-                fn($m) => (self::SEVERITY_ORDER[$m['type']] ?? 0) >= $minrank
-            ));
-            $p['count'] = count($p['messages']);
-            if ($p['count'] > 0) {
-                $principles[] = $p;
-            }
-        }
-        $payload['principles']   = $principles;
-        $payload['total_issues'] = count($payload['messages']);
-
-        return $payload;
     }
 
     /**
