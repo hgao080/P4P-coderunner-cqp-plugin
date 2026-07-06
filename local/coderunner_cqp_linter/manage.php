@@ -72,7 +72,6 @@ if ($existing) {
         'ai_enabled'    => (int)($existing->ai_enabled ?? 0),
         'custom_codes'  => (string)($existing->custom_codes ?? ''),
         'marks_enabled' => (int)($existing->marks_enabled ?? 0),
-        'marks_weight'  => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
         'questionid'    => $questionid,
         'returnurl'     => $returnurl,
     ];
@@ -123,15 +122,16 @@ if ($form->is_cancelled()) {
 
     $marksenabledold = !empty($existing->marks_enabled);
     $marksenablednew = !empty($data->marks_enabled);
-    $weight          = max(0.001, (float)($data->marks_weight ?? 1.0));
     $disabled        = $questdisable;
 
     $originalaon = isset($existing->original_allornothing) ? (int)$existing->original_allornothing : null;
 
     if ($marksenablednew) {
-        // Enable or re-enable (re-injects with current config).
+        // Enable or re-enable (re-injects with current config). The injected test
+        // case's mark weight defaults to 1.0 and can be adjusted afterwards like
+        // any other test case, directly on the question's own edit form.
         $originalaon = \local_coderunner_cqp_linter\question_marks_manager::enable(
-            $questionid, $weight, $disabled
+            $questionid, 1.0, $disabled
         );
     } else if ($marksenabledold && !$marksenablednew) {
         // Disabling marks mode: restore allornothing.
@@ -148,7 +148,6 @@ if ($form->is_cancelled()) {
         'disabled_checks'       => $questdisable !== '' ? $questdisable : null,
         'custom_codes'          => $customcodesstr !== '' ? $customcodesstr : null,
         'marks_enabled'         => $marksenablednew ? 1 : 0,
-        'marks_weight'          => $marksenablednew ? $weight : null,
         'original_allornothing' => $originalaon,
         'timemodified'          => $now,
     ];

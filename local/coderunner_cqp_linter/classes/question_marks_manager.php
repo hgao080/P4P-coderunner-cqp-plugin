@@ -96,8 +96,7 @@ class question_marks_manager {
         $DB->insert_record('question_coderunner_tests', (object)[
             'questionid'      => $questionid,
             'testtype'        => 0,
-            'testcode'        => "from cqp_style_check import check_style\n" .
-                                 "print(check_style(__student_answer__, __cqp_disabled__))",
+            'testcode'        => 'print(_cqp_style_mark())',
             'stdin'           => '',
             'expected'        => 'Style OK',
             'extra'           => self::TEST_EXTRA,
@@ -207,16 +206,24 @@ class question_marks_manager {
 
         return self::MARKER_BEGIN . "\n" .
                "import base64 as _b64\n" .
-               "with open('cqp_codes.json', 'wb') as _f:\n" .
-               "    _f.write(_b64.b64decode('{$codesjsonb64}'))\n" .
-               "with open('cqp_principles.py', 'wb') as _f:\n" .
-               "    _f.write(_b64.b64decode('{$principlesb64}'))\n" .
-               "with open('cqp_custom_checkers.py', 'wb') as _f:\n" .
-               "    _f.write(_b64.b64decode('{$checkerb64}'))\n" .
-               "with open('cqp_style_check.py', 'wb') as _f:\n" .
-               "    _f.write(_b64.b64decode('{$stylecheckb64}'))\n" .
+               "\n" .
+               "def _cqp_write_support_files():\n" .
+               "    with open('cqp_codes.json', 'wb') as _f:\n" .
+               "        _f.write(_b64.b64decode('{$codesjsonb64}'))\n" .
+               "    with open('cqp_principles.py', 'wb') as _f:\n" .
+               "        _f.write(_b64.b64decode('{$principlesb64}'))\n" .
+               "    with open('cqp_custom_checkers.py', 'wb') as _f:\n" .
+               "        _f.write(_b64.b64decode('{$checkerb64}'))\n" .
+               "    with open('cqp_style_check.py', 'wb') as _f:\n" .
+               "        _f.write(_b64.b64decode('{$stylecheckb64}'))\n" .
+               "\n" .
+               "_cqp_write_support_files()\n" .
                "__cqp_disabled__ = '{$safedisabled}'\n" .
                "__student_answer__ = \"\"\"{{ STUDENT_ANSWER | e('py') }}\"\"\"\n" .
+               "\n" .
+               "def _cqp_style_mark():\n" .
+               "    from cqp_style_check import check_style\n" .
+               "    return check_style(__student_answer__, __cqp_disabled__)\n" .
                self::MARKER_END;
     }
 
