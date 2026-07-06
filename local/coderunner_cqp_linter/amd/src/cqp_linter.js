@@ -195,7 +195,7 @@ define(['core/ajax'], function(Ajax) {
                 // shows one merged entry when two issues end up on one line
                 // after edits.
                 var key = row + '|' + annotationType(t.msg.type);
-                var text = '• CQP ' + t.msg.cqp_number + ': ' + t.msg.cqp_name +
+                var text = '• ' + principleLabel(t.msg.cqp_number, t.msg.cqp_name) +
                            ' (' + t.msg.symbol + ')\n  ' +
                            t.msg.message;
                 if (seen[key] !== undefined) {
@@ -258,7 +258,7 @@ define(['core/ajax'], function(Ajax) {
             html += '<span class="cqp-principle-badge cqp-principle-' + p.number + '" ' +
                     'data-cqp-number="' + p.number + '" ' +
                     'title="' + escapeAttr(p.short) + '">' +
-                    'CQP ' + p.number + ': ' + escapeHtml(p.name) +
+                    escapeHtml(principleLabel(p.number, p.name)) +
                     ' <span class="cqp-badge-count">(' + p.count + ')</span></span>';
         });
         html += '</div>';
@@ -267,7 +267,7 @@ define(['core/ajax'], function(Ajax) {
         data.principles.forEach(function(group) {
             html += '<div class="cqp-group" data-cqp-number="' + group.number + '">';
             html += '<div class="cqp-group-header cqp-principle-' + group.number + '-header">';
-            html += '<strong>CQP ' + group.number + ': ' + escapeHtml(group.name) + '</strong>';
+            html += '<strong>' + escapeHtml(principleLabel(group.number, group.name)) + '</strong>';
             html += '</div>';
             html += '<div class="cqp-group-guideline">' + escapeHtml(group.guideline) + '</div>';
             html += '<table class="table table-sm cqp-messages-table"><tbody>';
@@ -287,6 +287,18 @@ define(['core/ajax'], function(Ajax) {
 
         html += '</details></div>';
         return html;
+    }
+
+    /**
+     * Label for a principle group. Number 0 is the teacher-configured
+     * "Additional checks" bucket, which has no CQP number.
+     *
+     * @param {number} number Principle number (0 for Additional checks).
+     * @param {string} name   Principle/group name.
+     * @return {string} Display label.
+     */
+    function principleLabel(number, name) {
+        return parseInt(number, 10) === 0 ? name : ('CQP ' + number + ': ' + name);
     }
 
     /**

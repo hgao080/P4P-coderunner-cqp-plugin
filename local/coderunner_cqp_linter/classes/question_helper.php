@@ -304,13 +304,18 @@ class question_helper {
     public static function get_lint_config(int $questionid): array {
         $config = [
             'disable' => '',
+            'custom'  => '',
             'rcfile'  => get_config('local_coderunner_cqp_linter', 'pylintrc_path') ?: '',
         ];
 
-        // Merge per-question disabled check overrides.
+        // Merge per-question overrides: disabled checklist codes and any extra
+        // teacher-added pylint/pycodestyle codes ("Additional checks").
         $qconfig = self::get_qconfig($questionid);
         if ($qconfig && !empty($qconfig->disabled_checks)) {
             $config['disable'] = $qconfig->disabled_checks;
+        }
+        if ($qconfig && !empty($qconfig->custom_codes)) {
+            $config['custom'] = $qconfig->custom_codes;
         }
 
         return $config;

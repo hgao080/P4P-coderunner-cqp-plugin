@@ -78,6 +78,8 @@ details[open] > .pylint-header {
 .cqp-principle-6-header { background-color: #e7e3f1; color: #4a3d6e; }
 .cqp-principle-7-header { background-color: #d1ecf1; color: #0c5460; }
 .cqp-principle-8-header { background-color: #fde8d0; color: #7a4a0e; }
+/* Teacher-configured "Additional checks" group (no CQP number) */
+.cqp-principle-0-header { background-color: #eceff1; color: #37474f; }
 
 /* ===== Message table ===== */
 .pylint-messages {
@@ -262,6 +264,7 @@ details[open] > .pylint-header {
 .cqp-principle-6 { background-color: #e7e3f1; color: #4a3d6e; }
 .cqp-principle-7 { background-color: #d1ecf1; color: #0c5460; }
 .cqp-principle-8 { background-color: #fde8d0; color: #7a4a0e; }
+.cqp-principle-0 { background-color: #eceff1; color: #37474f; }
 
 /* JS results - message groups */
 .cqp-results-panel .cqp-group {

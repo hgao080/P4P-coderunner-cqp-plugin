@@ -131,13 +131,14 @@ class runner {
         }
 
         $disable = $options['disable'] ?? '';
+        $custom  = $options['custom'] ?? '';
 
         $filecontents = $this->read_support_files();
         if ($filecontents === null) {
             return array_merge($empty, ['error' => 'CQP support files missing from plugin python/ directory.']);
         }
 
-        $runnerscript = $this->build_button_runner_script($disable, $filecontents);
+        $runnerscript = $this->build_button_runner_script($disable, $custom, $filecontents);
 
         $joberesult = $this->submit_to_jobe($runnerscript, $code);
 
@@ -162,11 +163,13 @@ class runner {
      * though the library is importable.
      *
      * @param string $disable      Comma-separated codes/names to suppress.
+     * @param string $custom       Comma-separated extra pylint/pycodestyle codes to enable.
      * @param array  $filecontents ['filename' => base64string] for support files.
      * @return string Python source.
      */
-    private function build_button_runner_script(string $disable, array $filecontents): string {
+    private function build_button_runner_script(string $disable, string $custom, array $filecontents): string {
         $safedisable   = addslashes($disable);
+        $safecustom    = addslashes($custom);
         $principlesb64 = $filecontents['cqp_principles.py'] ?? '';
         $checkerb64    = $filecontents['cqp_custom_checkers.py'] ?? '';
         $codesjsonb64  = $filecontents['cqp_codes.json'] ?? '';
@@ -187,6 +190,17 @@ from cqp_principles import (PRINCIPLES, PYCODESTYLE_CODES, CUSTOM_CODES,
                             normalise_pylint_code)
 
 DISABLED = set(s.strip() for s in '$safedisable'.split(',') if s.strip())
+
+# Extra teacher-added codes not in the CQP checklist. A pylint message-id is a
+# letter + 4 digits (e.g. C0114); a pycodestyle code is a letter + 3 digits
+# (e.g. E501). Violations of these are reported in a separate "Additional
+# checks" group rather than under a CQP principle.
+CUSTOM_ALL = [c.strip().upper() for c in '$safecustom'.split(',') if c.strip()]
+CUSTOM_PYLINT = set(c for c in CUSTOM_ALL if re.match(r'^[A-Z]\d{4}\$', c))
+CUSTOM_PYCS = set(c for c in CUSTOM_ALL if re.match(r'^[A-Z]\d{3}\$', c))
+ADDITIONAL_NUM = 0
+ADDITIONAL_NAME = 'Additional checks'
+ADDITIONAL_GUIDELINE = 'Extra checks configured for this question by your teacher.'
 
 PRINCIPLE_KEYS = [
     'clear_presentation', 'explanatory_language', 'consistent_code',
@@ -218,6 +232,9 @@ try:
                 code_map[code] = {'sym': sym, 'expl': expl, 'key': key}
 
     pylint_codes = [c for c in code_map if c not in PYCODESTYLE_CODES and c not in CUSTOM_CODES]
+    # Union the checklist pylint codes with any extra custom pylint codes not
+    # already covered by the checklist.
+    pylint_enable = list(dict.fromkeys(pylint_codes + [c for c in CUSTOM_PYLINT if c not in code_map]))
 
     student_code = sys.stdin.read()
 
@@ -239,7 +256,7 @@ try:
 
     all_messages = []
 
-    if pylint_codes:
+    if pylint_enable:
         with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as f:
             f.write(student_code)
             tmppath = f.name
@@ -255,7 +272,7 @@ try:
             try:
                 Run([
                     '--disable=all',
-                    '--enable=' + ','.join(pylint_codes),
+                    '--enable=' + ','.join(pylint_enable),
                     # A top-level assignment is treated by pylint as a "constant"
                     # and, by default, demanded to be UPPER_CASE. Many CS101
                     # questions are plain scripts (no function required), so a
@@ -292,6 +309,19 @@ try:
                         'cqp_name':      pdata['name'],
                         'cqp_guideline': pdata['rationale'],
                     })
+                elif code in CUSTOM_PYLINT:
+                    # Teacher-added code: no curated CQP text, so use pylint's
+                    # own symbol and message under the Additional checks group.
+                    all_messages.append({
+                        'line':          int(msg.get('line', 0)),
+                        'type':          code_to_type(code),
+                        'code':          code,
+                        'symbol':        msg.get('symbol', '') or code,
+                        'message':       msg.get('message', '') or code,
+                        'cqp_number':    ADDITIONAL_NUM,
+                        'cqp_name':      ADDITIONAL_NAME,
+                        'cqp_guideline': ADDITIONAL_GUIDELINE,
+                    })
         finally:
             try:
                 os.unlink(tmppath)
@@ -299,13 +329,16 @@ try:
                 pass
 
     pycs_codes = [c for c in code_map if c in PYCODESTYLE_CODES]
-    if pycs_codes:
+    # Union with any extra custom pycodestyle codes not already in the checklist.
+    pycs_select = list(dict.fromkeys(pycs_codes + [c for c in CUSTOM_PYCS if c not in code_map]))
+    if pycs_select:
         import pycodestyle as _pycodestyle
         _pycs_items = []
         class _PCSCollector(_pycodestyle.BaseReport):
             def error(self, line_number, offset, text, check):
                 _code = text[:4]
-                _pycs_items.append((line_number, _code))
+                # Keep the native text too, for custom codes without curated copy.
+                _pycs_items.append((line_number, _code, text))
                 return super().error(line_number, offset, text, check)
         with tempfile.NamedTemporaryFile(suffix='.py', mode='w', delete=False, encoding='utf-8') as _f:
             _f.write(student_code)
@@ -313,14 +346,14 @@ try:
         _saved = sys.stdout
         sys.stdout = io.StringIO()
         try:
-            _pycodestyle.StyleGuide(select=pycs_codes, ignore=(), reporter=_PCSCollector).check_files([_tmppath])
+            _pycodestyle.StyleGuide(select=pycs_select, ignore=(), reporter=_PCSCollector).check_files([_tmppath])
         finally:
             sys.stdout = _saved
             try:
                 os.unlink(_tmppath)
             except OSError:
                 pass
-        for _lineno, _code in _pycs_items:
+        for _lineno, _code, _text in _pycs_items:
             if _code in code_map:
                 _info = code_map[_code]
                 _num = PRINCIPLE_NUMBERS.get(_info['key'], 0)
@@ -334,6 +367,20 @@ try:
                     'cqp_number':    _num,
                     'cqp_name':      _pdata['name'],
                     'cqp_guideline': _pdata['rationale'],
+                })
+            elif _code in CUSTOM_PYCS:
+                # Teacher-added code: use pycodestyle's own message (the text
+                # after the code prefix) under the Additional checks group.
+                _native = _text[len(_code):].strip() or _code
+                all_messages.append({
+                    'line':          _lineno,
+                    'type':          'convention',
+                    'code':          _code,
+                    'symbol':        _code,
+                    'message':       _native,
+                    'cqp_number':    ADDITIONAL_NUM,
+                    'cqp_name':      ADDITIONAL_NAME,
+                    'cqp_guideline': ADDITIONAL_GUIDELINE,
                 })
 
     custom_codes = [c for c in code_map if c in CUSTOM_CODES]
@@ -381,6 +428,18 @@ try:
             'guideline': pdata['rationale'],
             'count':     len(msgs),
             'messages':  msgs,
+        })
+
+    # Teacher-added custom codes form their own group, shown after the CQP ones.
+    if ADDITIONAL_NUM in by_key:
+        _amsgs = by_key[ADDITIONAL_NUM]
+        principles_out.append({
+            'number':    ADDITIONAL_NUM,
+            'name':      ADDITIONAL_NAME,
+            'short':     ADDITIONAL_GUIDELINE,
+            'guideline': ADDITIONAL_GUIDELINE,
+            'count':     len(_amsgs),
+            'messages':  _amsgs,
         })
 
     print(json.dumps({

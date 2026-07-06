@@ -70,6 +70,7 @@ if ($existing) {
     $data = [
         'enabled'       => (int)$existing->enabled,
         'ai_enabled'    => (int)($existing->ai_enabled ?? 0),
+        'custom_codes'  => (string)($existing->custom_codes ?? ''),
         'marks_enabled' => (int)($existing->marks_enabled ?? 0),
         'marks_weight'  => !empty($existing->marks_weight) ? (float)$existing->marks_weight : 1.0,
         'questionid'    => $questionid,
@@ -114,6 +115,12 @@ if ($form->is_cancelled()) {
     }
     $aiprinciplesstr = implode(',', $aiprinciples);
 
+    // Normalise the custom-codes box to a clean CSV of valid codes. Validation
+    // has already rejected malformed tokens, so only valid ones remain here.
+    $customcodes = \local_coderunner_cqp_linter\form\manage_form::parse_custom_codes(
+        (string)($data->custom_codes ?? ''))['valid'];
+    $customcodesstr = implode(',', $customcodes);
+
     $marksenabledold = !empty($existing->marks_enabled);
     $marksenablednew = !empty($data->marks_enabled);
     $weight          = max(0.001, (float)($data->marks_weight ?? 1.0));
@@ -139,6 +146,7 @@ if ($form->is_cancelled()) {
         'ai_enabled'            => !empty($data->ai_enabled) ? 1 : 0,
         'ai_principles'         => $aiprinciplesstr,
         'disabled_checks'       => $questdisable !== '' ? $questdisable : null,
+        'custom_codes'          => $customcodesstr !== '' ? $customcodesstr : null,
         'marks_enabled'         => $marksenablednew ? 1 : 0,
         'marks_weight'          => $marksenablednew ? $weight : null,
         'original_allornothing' => $originalaon,

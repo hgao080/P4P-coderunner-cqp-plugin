@@ -66,6 +66,54 @@ class manage_form extends \moodleform {
         return $grouped;
     }
 
+    /**
+     * Parse the free-text custom-codes CSV into valid and invalid tokens.
+     *
+     * Accepts comma- or whitespace-separated codes, case-insensitively. A valid
+     * code is a single letter followed by 3 digits (pycodestyle, e.g. E501) or 4
+     * digits (pylint, e.g. C0114). Tokens are upper-cased and de-duplicated;
+     * order is preserved.
+     *
+     * @param string $raw Raw textarea content.
+     * @return array{valid: string[], invalid: string[]}
+     */
+    public static function parse_custom_codes(string $raw): array {
+        $tokens = preg_split('/[\s,]+/', trim($raw), -1, PREG_SPLIT_NO_EMPTY);
+        $valid = [];
+        $invalid = [];
+        foreach ($tokens as $token) {
+            $code = \core_text::strtoupper($token);
+            if (preg_match('/^[A-Z]\d{3,4}$/', $code)) {
+                if (!in_array($code, $valid, true)) {
+                    $valid[] = $code;
+                }
+            } else {
+                $invalid[] = $token;
+            }
+        }
+        return ['valid' => $valid, 'invalid' => $invalid];
+    }
+
+    /**
+     * Reject custom-code entries that are not valid pylint/pycodestyle codes.
+     *
+     * @param array $data  Submitted data.
+     * @param array $files Submitted files.
+     * @return array Field name => error message.
+     */
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+        $raw = (string)($data['custom_codes'] ?? '');
+        if (trim($raw) !== '') {
+            $parsed = self::parse_custom_codes($raw);
+            if (!empty($parsed['invalid'])) {
+                $errors['custom_codes'] = get_string('manage_custom_codes_invalid',
+                    'local_coderunner_cqp_linter', s(implode(', ', $parsed['invalid'])));
+            }
+        }
+        return $errors;
+    }
+
     protected function definition() {
         $mform = $this->_form;
         $customdata = $this->_customdata;
@@ -116,6 +164,15 @@ class manage_form extends \moodleform {
         // optional_param(). The JS (registered in manage.php via js_init_code)
         // only drives the group toggle and the per-card counters.
         $mform->addElement('html', $this->build_checks_html($principles));
+
+        // Free-text box for extra pylint/pycodestyle codes not in the checklist
+        // above. Violations of these are reported to students in a separate
+        // "Additional checks" group.
+        $mform->addElement('textarea', 'custom_codes',
+            get_string('manage_custom_codes', 'local_coderunner_cqp_linter'),
+            ['rows' => 2, 'cols' => 60, 'placeholder' => 'e.g. C0114, W0201, E501']);
+        $mform->setType('custom_codes', PARAM_RAW_TRIMMED);
+        $mform->addHelpButton('custom_codes', 'manage_custom_codes', 'local_coderunner_cqp_linter');
 
         $mform->addElement('header', 'marks_header', get_string('manage_marks_header', 'local_coderunner_cqp_linter'));
 

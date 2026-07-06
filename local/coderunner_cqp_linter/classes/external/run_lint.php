@@ -81,6 +81,7 @@ class run_lint extends \external_api {
         $runner = new \local_coderunner_cqp_linter\tools\pylint\runner();
         $result = $runner->lint_for_button($params['code'], [
             'disable' => $config['disable'],
+            'custom'  => $config['custom'] ?? '',
         ]);
 
         return json_encode($result);

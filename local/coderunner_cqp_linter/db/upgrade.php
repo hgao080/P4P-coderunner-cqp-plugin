@@ -171,5 +171,19 @@ function xmldb_local_coderunner_cqp_linter_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026070106, 'local', 'coderunner_cqp_linter');
     }
 
+    if ($oldversion < 2026070110) {
+        // Per-question box for teachers to add extra pylint/pycodestyle codes
+        // beyond the CQP checklist. Violations of these are reported in a
+        // separate "Additional checks" group in the student report.
+        $table = new xmldb_table('local_crcqp_qconfig');
+        $field = new xmldb_field('custom_codes', XMLDB_TYPE_CHAR, '255', null, null, null, null);
+        if (!$dbman->field_exists($table, $field)) {
+            // Add after disabled_checks.
+            $field->setPrevious('disabled_checks');
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2026070110, 'local', 'coderunner_cqp_linter');
+    }
+
     return true;
 }
