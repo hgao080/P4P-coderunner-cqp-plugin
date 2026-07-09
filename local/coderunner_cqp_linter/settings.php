@@ -79,6 +79,18 @@ if ($hassiteconfig) {
     // each question's "Enable AI analysis" option. Leave the API key blank to
     // keep AI off everywhere.
 
+    $settings->add(new admin_setting_configselect(
+        'local_coderunner_cqp_linter/ai_provider',
+        get_string('ai_provider', 'local_coderunner_cqp_linter'),
+        get_string('ai_provider_desc', 'local_coderunner_cqp_linter'),
+        'azure',
+        [
+            'azure'  => get_string('ai_provider_azure', 'local_coderunner_cqp_linter'),
+            'gemini' => get_string('ai_provider_gemini', 'local_coderunner_cqp_linter'),
+            'openai' => get_string('ai_provider_openai', 'local_coderunner_cqp_linter'),
+        ]
+    ));
+
     $settings->add(new admin_setting_configpasswordunmask(
         'local_coderunner_cqp_linter/ai_api_key',
         get_string('ai_api_key', 'local_coderunner_cqp_linter'),
@@ -98,8 +110,16 @@ if ($hassiteconfig) {
         'local_coderunner_cqp_linter/ai_base_url',
         get_string('ai_base_url', 'local_coderunner_cqp_linter'),
         get_string('ai_base_url_desc', 'local_coderunner_cqp_linter'),
-        'https://api.openai.com/v1',
+        '',
         PARAM_URL
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'local_coderunner_cqp_linter/ai_azure_api_version',
+        get_string('ai_azure_api_version', 'local_coderunner_cqp_linter'),
+        get_string('ai_azure_api_version_desc', 'local_coderunner_cqp_linter'),
+        '2024-10-21',
+        PARAM_TEXT
     ));
 
     // NOTE: The AI "when to run" selector was intentionally removed. AI analysis

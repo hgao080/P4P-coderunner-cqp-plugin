@@ -21,7 +21,8 @@ use local_coderunner_cqp_linter\cqp_mapper;
 /**
  * Assesses student code against the "semantic" Code Quality Principles that a
  * static linter cannot check well (naming and comment quality, duplication,
- * and problem alignment) using an OpenAI-compatible chat model.
+ * and problem alignment) using a configurable AI chat provider (OpenAI,
+ * Azure OpenAI / AI Foundry, or Google Gemini — see {@see provider}).
  *
  * Disabled unless an administrator enables it and supplies an API key. All
  * failures are returned as a structured error; this class never throws so a
@@ -54,36 +55,21 @@ class analyzer {
     /** @var int Max characters of question text to send as context. */
     public const MAX_PROBLEM_TEXT = 2000;
 
-    /** @var string OpenAI-compatible API base URL (no trailing slash). */
-    private string $baseurl;
-
-    /** @var string API key. */
-    private string $apikey;
-
-    /** @var string Model name. */
-    private string $model;
-
-    /** @var int Request timeout in seconds. */
-    private int $timeout;
+    /** @var provider The configured AI chat provider. */
+    private provider $provider;
 
     /** @var int Max code size in bytes to send. */
     private int $maxcodesize;
 
-    /** @var float Sampling temperature. */
-    private float $temperature;
-
     /**
      * Read configuration from plugin settings.
+     *
+     * @param provider|null $provider Provider to use; null builds the one
+     *        selected in the admin settings.
      */
-    public function __construct() {
-        $cfg = fn($name, $default = '') => get_config('local_coderunner_cqp_linter', $name) ?: $default;
-
-        $this->baseurl     = rtrim((string)$cfg('ai_base_url', 'https://api.openai.com/v1'), '/');
-        $this->apikey      = (string)$cfg('ai_api_key', '');
-        $this->model       = (string)$cfg('ai_model', 'gpt-4o-mini');
-        $this->timeout     = (int)$cfg('ai_timeout', 30);
-        $this->maxcodesize = (int)$cfg('ai_max_code_size', 8000);
-        $this->temperature = (float)$cfg('ai_temperature', '0.2');
+    public function __construct(?provider $provider = null) {
+        $this->provider = $provider ?? provider::create();
+        $this->maxcodesize = (int)(get_config('local_coderunner_cqp_linter', 'ai_max_code_size') ?: 8000);
     }
 
     /**
@@ -266,7 +252,7 @@ class analyzer {
     }
 
     /**
-     * Call the chat completions API and return the raw assistant content string.
+     * Call the configured AI provider and return the raw assistant content string.
      *
      * @param string $code
      * @param int[]  $principles
@@ -274,9 +260,6 @@ class analyzer {
      * @return string|null Assistant message content, or null on failure.
      */
     private function call_api(string $code, array $principles, string $problemtext = ''): ?string {
-        global $CFG;
-        require_once($CFG->libdir . '/filelib.php');
-
         // Number the lines so the model can reference them reliably.
         $numbered = '';
         foreach (explode("\n", $code) as $i => $line) {
@@ -290,41 +273,7 @@ class analyzer {
         }
         $usercontent .= "Student code (with line numbers):\n\n" . $numbered;
 
-        $payload = [
-            'model'           => $this->model,
-            'temperature'     => $this->temperature,
-            'response_format' => ['type' => 'json_object'],
-            'messages'        => [
-                ['role' => 'system', 'content' => $this->build_system_prompt($principles)],
-                ['role' => 'user', 'content' => $usercontent],
-            ],
-        ];
-
-        $curl = new \curl();
-        $curl->setHeader('Authorization: Bearer ' . $this->apikey);
-        $curl->setHeader('Content-Type: application/json');
-
-        $response = $curl->post(
-            $this->baseurl . '/chat/completions',
-            json_encode($payload),
-            [
-                'CURLOPT_TIMEOUT'        => $this->timeout,
-                'CURLOPT_CONNECTTIMEOUT' => min(10, $this->timeout),
-                'CURLOPT_RETURNTRANSFER' => true,
-            ]
-        );
-
-        $info = $curl->get_info();
-        $httpcode = (int)($info['http_code'] ?? 0);
-        if ($curl->get_errno() || $httpcode < 200 || $httpcode >= 300) {
-            debugging('CQP AI API HTTP ' . $httpcode . ': ' . substr((string)$response, 0, 500),
-                DEBUG_DEVELOPER);
-            return null;
-        }
-
-        $decoded = json_decode($response, true);
-        $content = $decoded['choices'][0]['message']['content'] ?? null;
-        return is_string($content) ? $content : null;
+        return $this->provider->complete($this->build_system_prompt($principles), $usercontent);
     }
 
     /**
@@ -360,6 +309,24 @@ class analyzer {
     }
 
     /**
+     * Strip a markdown code fence around the model's JSON, if present.
+     *
+     * Providers are asked for JSON output, but not every model honours a JSON
+     * mode (and some OpenAI-compatible endpoints ignore response_format), in
+     * which case the JSON often arrives wrapped in ```json ... ``` fences.
+     *
+     * @param string $content Raw assistant content.
+     * @return string Content with any surrounding fence removed.
+     */
+    private static function strip_json_fence(string $content): string {
+        $content = trim($content);
+        if (preg_match('/^```[a-zA-Z]*\s*(.*?)\s*```$/s', $content, $m)) {
+            return $m[1];
+        }
+        return $content;
+    }
+
+    /**
      * Parse the model's JSON content into the standard linter payload.
      *
      * @param string $content Assistant JSON content.
@@ -369,7 +336,7 @@ class analyzer {
     private function build_payload(string $content, array $allowed): array {
         $empty = ['success' => false, 'total_issues' => 0, 'messages' => [], 'principles' => []];
 
-        $data = json_decode($content, true);
+        $data = json_decode(self::strip_json_fence($content), true);
         if (!is_array($data) || !isset($data['findings']) || !is_array($data['findings'])) {
             return array_merge($empty, ['error' => 'Could not parse AI response.']);
         }
